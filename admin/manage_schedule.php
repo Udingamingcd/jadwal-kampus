@@ -31,14 +31,44 @@ if (!$user) {
 // Simpan password hash untuk verifikasi nanti
 $_SESSION['password_hash'] = $user['password'];
 
-// Ambil setting tahun akademik dan semester aktif
-$tahun_akademik_aktif = getSetting($db, 'tahun_akademik') ?? date('Y') . '/' . (date('Y') + 1);
-$semester_aktif = getSetting($db, 'semester_aktif') ?? 'GANJIL';
+// =======================================================
+// AMBIL DATA SEMESTER DARI semester_settings
+// =======================================================
 
-// Ambil semua jadwal untuk digunakan di seluruh script
-$query_schedules = "SELECT * FROM schedules ORDER BY tahun_akademik DESC, semester, kelas, hari, jam_ke";
+// Ambil semester aktif dari semester_settings
+$active_semester = getActiveSemester($db);
+$tahun_akademik_aktif = $active_semester['tahun_akademik'];
+$semester_aktif = $active_semester['semester'];
+
+// Ambil semua tahun akademik dari semester_settings
+$tahun_list = getAllTahunAkademik($db);
+
+// Tambahkan tahun akademik aktif jika belum ada dalam list
+if (!in_array($tahun_akademik_aktif, $tahun_list)) {
+    array_unshift($tahun_list, $tahun_akademik_aktif);
+}
+
+// Ambil filter dari URL (jika ada)
+$filter_tahun = $_GET['filter_tahun'] ?? $tahun_akademik_aktif;
+$filter_semester = $_GET['filter_semester'] ?? $semester_aktif;
+
+// Ambil semua jadwal dengan filter
+$query_schedules = "SELECT * FROM schedules WHERE 1=1";
+$params = [];
+
+if ($filter_tahun != 'all') {
+    $query_schedules .= " AND tahun_akademik = ?";
+    $params[] = $filter_tahun;
+}
+
+if ($filter_semester != 'all') {
+    $query_schedules .= " AND semester = ?";
+    $params[] = $filter_semester;
+}
+
+$query_schedules .= " ORDER BY tahun_akademik DESC, semester, kelas, hari, jam_ke";
 $stmt_schedules = $db->prepare($query_schedules);
-$stmt_schedules->execute();
+$stmt_schedules->execute($params);
 $schedules = $stmt_schedules->fetchAll(PDO::FETCH_ASSOC);
 
 // Tambah jadwal
@@ -55,7 +85,7 @@ if(isset($_POST['add_schedule'])) {
     if(empty($_POST['dosen'])) $errors[] = "Dosen harus diisi";
     if(empty($_POST['ruang'])) $errors[] = "Ruang harus dipilih";
     if(empty($_POST['semester'])) $errors[] = "Semester harus dipilih";
-    if(empty($_POST['tahun_akademik'])) $errors[] = "Tahun akademik harus diisi";
+    if(empty($_POST['tahun_akademik'])) $errors[] = "Tahun akademik harus dipilih";
     
     // Validasi waktu
     $time_error = validateScheduleTime($_POST['waktu_mulai'], $_POST['waktu_selesai']);
@@ -132,7 +162,7 @@ if(isset($_POST['edit_schedule'])) {
     if(empty($_POST['dosen'])) $errors[] = "Dosen harus diisi";
     if(empty($_POST['ruang'])) $errors[] = "Ruang harus dipilih";
     if(empty($_POST['semester'])) $errors[] = "Semester harus dipilih";
-    if(empty($_POST['tahun_akademik'])) $errors[] = "Tahun akademik harus diisi";
+    if(empty($_POST['tahun_akademik'])) $errors[] = "Tahun akademik harus dipilih";
     
     // Validasi waktu
     $time_error = validateScheduleTime($_POST['waktu_mulai'], $_POST['waktu_selesai']);
@@ -246,12 +276,6 @@ $query = "SELECT nama_ruang FROM rooms ORDER BY nama_ruang";
 $stmt = $db->prepare($query);
 $stmt->execute();
 $rooms = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-// Ambil semua tahun akademik yang ada
-$query_tahun = "SELECT DISTINCT tahun_akademik FROM schedules ORDER BY tahun_akademik DESC";
-$stmt_tahun = $db->prepare($query_tahun);
-$stmt_tahun->execute();
-$tahun_list = $stmt_tahun->fetchAll(PDO::FETCH_COLUMN);
 
 // Ambil semua kelas yang ada
 $query_kelas_all = "SELECT DISTINCT kelas FROM schedules ORDER BY kelas";
@@ -444,6 +468,21 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             font-size: 0.9rem;
             opacity: 0.9;
         }
+        .filter-section {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filter-section h6 {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .active-filter {
+            border-left: 4px solid #4a6491;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -494,6 +533,9 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                                 Kelola jadwal kuliah untuk semua kelas 
                                 <span class="badge bg-primary badge-count"><?php echo count($schedules); ?> data</span>
                             </p>
+                            <small class="text-muted">
+                                Semester Aktif: <strong><?php echo $semester_aktif; ?> - <?php echo $tahun_akademik_aktif; ?></strong>
+                            </small>
                         </div>
                         <div>
                             <!-- Tombol Hapus Semua -->
@@ -506,6 +548,50 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <!-- Filter Section -->
+                <div class="filter-section">
+                    <h6><i class="fas fa-filter me-2"></i>Filter Jadwal</h6>
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Tahun Akademik</label>
+                            <select name="filter_tahun" class="form-control" onchange="this.form.submit()">
+                                <option value="all">Semua Tahun Akademik</option>
+                                <?php foreach($tahun_list as $tahun): ?>
+                                    <option value="<?php echo htmlspecialchars($tahun); ?>" 
+                                        <?php echo $filter_tahun == $tahun ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($tahun); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Semester</label>
+                            <select name="filter_semester" class="form-control" onchange="this.form.submit()">
+                                <option value="all">Semua Semester</option>
+                                <option value="GANJIL" <?php echo $filter_semester == 'GANJIL' ? 'selected' : ''; ?>>GANJIL</option>
+                                <option value="GENAP" <?php echo $filter_semester == 'GENAP' ? 'selected' : ''; ?>>GENAP</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <a href="manage_schedule.php" class="btn btn-secondary w-100">
+                                <i class="fas fa-redo me-2"></i>Reset Filter
+                            </a>
+                        </div>
+                    </form>
+                    <?php if($filter_tahun != 'all' || $filter_semester != 'all'): ?>
+                    <div class="mt-3 alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Filter Aktif: 
+                        <?php if($filter_tahun != 'all'): ?>
+                            <span class="badge bg-info me-2">Tahun: <?php echo $filter_tahun; ?></span>
+                        <?php endif; ?>
+                        <?php if($filter_semester != 'all'): ?>
+                            <span class="badge bg-info">Semester: <?php echo $filter_semester; ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Statistics Cards -->
@@ -696,7 +782,19 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                                 </div>
                                 <div class="mb-3">
                                     <label>Tahun Akademik <span class="text-danger">*</span></label>
-                                    <input type="text" name="tahun_akademik" class="form-control" value="<?php echo $tahun_akademik_aktif; ?>" required placeholder="Contoh: 2025/2026">
+                                    <select name="tahun_akademik" class="form-control" required>
+                                        <option value="">Pilih Tahun Akademik</option>
+                                        <?php foreach($tahun_list as $tahun): ?>
+                                            <option value="<?php echo htmlspecialchars($tahun); ?>" 
+                                                <?php echo $tahun == $tahun_akademik_aktif ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($tahun); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Tambah tahun akademik baru di <a href="manage_semester.php" target="_blank">Kelola Semester</a>
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -795,7 +893,14 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                                 </div>
                                 <div class="mb-3">
                                     <label>Tahun Akademik <span class="text-danger">*</span></label>
-                                    <input type="text" name="tahun_akademik" id="edit_tahun_akademik" class="form-control" required>
+                                    <select name="tahun_akademik" id="edit_tahun_akademik" class="form-control" required>
+                                        <option value="">Pilih Tahun Akademik</option>
+                                        <?php foreach($tahun_list as $tahun): ?>
+                                            <option value="<?php echo htmlspecialchars($tahun); ?>">
+                                                <?php echo htmlspecialchars($tahun); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -897,6 +1002,8 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 $(this).find('form')[0].reset();
                 $('#add_waktu_mulai').val('07:30');
                 $('#add_waktu_selesai').val('09:00');
+                // Reset tahun akademik ke aktif
+                $('#addModal select[name="tahun_akademik"]').val('<?php echo $tahun_akademik_aktif; ?>');
             });
             
             // Reset form saat modal hapus semua ditutup
@@ -930,6 +1037,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 const kelas = $('input[name="kelas"]').val();
                 const mata_kuliah = $('input[name="mata_kuliah"]').val();
                 const dosen = $('input[name="dosen"]').val();
+                const tahun_akademik = $('select[name="tahun_akademik"]').val();
                 
                 if(!kelas) {
                     e.preventDefault();
@@ -949,6 +1057,13 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     e.preventDefault();
                     alert('Dosen harus diisi');
                     $('input[name="dosen"]').focus();
+                    return false;
+                }
+                
+                if(!tahun_akademik) {
+                    e.preventDefault();
+                    alert('Tahun akademik harus dipilih');
+                    $('select[name="tahun_akademik"]').focus();
                     return false;
                 }
                 
@@ -992,6 +1107,14 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             $('#editForm').on('submit', function(e) {
                 const waktu_mulai = $('#edit_waktu_mulai').val();
                 const waktu_selesai = $('#edit_waktu_selesai').val();
+                const tahun_akademik = $('#edit_tahun_akademik').val();
+                
+                if(!tahun_akademik) {
+                    e.preventDefault();
+                    alert('Tahun akademik harus dipilih');
+                    $('#edit_tahun_akademik').focus();
+                    return false;
+                }
                 
                 if(!waktu_mulai || !waktu_selesai) {
                     e.preventDefault();

@@ -154,6 +154,22 @@ body {
     100% { transform: scale(1); }
 }
 
+/* Notification Animation */
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.save-notification {
+    animation: slideInUp 0.3s ease-out;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .maintenance-content {
@@ -255,6 +271,12 @@ body {
         width: 100%;
         justify-content: center;
     }
+    
+    .save-notification {
+        max-width: 90% !important;
+        margin: 10px;
+        padding: 15px !important;
+    }
 }
 
 @media (min-width: 769px) {
@@ -298,6 +320,11 @@ body {
         width: 70px;
         height: 70px;
         padding: 8px;
+    }
+    
+    .save-notification {
+        font-size: 14px;
+        padding: 10px !important;
     }
 }
 
@@ -352,4 +379,13 @@ body {
 ::selection {
     background: var(--primary);
     color: white;
+}
+
+/* Loading spinner */
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }

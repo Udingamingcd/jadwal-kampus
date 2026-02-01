@@ -5,12 +5,6 @@ let ruanganData = {};
 
 // Initialize on DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
     // Load room data from page attribute
     try {
         const ruanganAttr = document.body.getAttribute('data-ruangan');
@@ -21,9 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error loading room data:', e);
     }
 
-    // Setup event listeners untuk semua tombol detail
-    setupDetailButtons();
-    
     // Setup auto-refresh untuk jadwal saat ini
     setupAutoRefresh();
     
@@ -39,23 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update current time initially
     updateCurrentTime();
 });
-
-function setupDetailButtons() {
-    // Event delegation untuk tombol detail
-    document.addEventListener('click', function(e) {
-        const detailBtn = e.target.closest('.btn-detail');
-        if (detailBtn) {
-            e.preventDefault();
-            try {
-                const scheduleData = JSON.parse(detailBtn.getAttribute('data-schedule'));
-                showScheduleDetail(scheduleData);
-            } catch (error) {
-                console.error('Error parsing schedule data:', error);
-                alert('Terjadi kesalahan saat memuat detail jadwal');
-            }
-        }
-    });
-}
 
 function showScheduleDetail(schedule) {
     // Get room data
@@ -485,6 +459,5 @@ function escapeHtml(text) {
 
 // Export functions for global use
 window.showScheduleDetail = showScheduleDetail;
-window.updateFilter = updateFilter;
-window.showAllSchedule = showAllSchedule;
-window.switchSemester = switchSemester;
+window.updateCurrentTime = updateCurrentTime;
+window.updateScheduleStatus = updateScheduleStatus;

@@ -124,3 +124,27 @@ ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 INSERT INTO settings (setting_key, setting_value) VALUES
     ('fakultas', 'Fakultas Teknik')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
+-- =======================================================
+-- TABLE: semester_settings
+-- =======================================================
+
+CREATE TABLE IF NOT EXISTS semester_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tahun_akademik VARCHAR(20) NOT NULL,
+    semester ENUM('GANJIL', 'GENAP') NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_tahun_semester (tahun_akademik, semester)
+);
+
+-- =======================================================
+-- INSERT DEFAULT SEMESTER SETTINGS
+-- =======================================================
+
+INSERT INTO semester_settings (tahun_akademik, semester, is_active) VALUES
+    ('2025/2026', 'GANJIL', 1)
+ON DUPLICATE KEY UPDATE is_active = VALUES(is_active);
+
+ALTER TABLE rooms 
+ADD COLUMN kapasitas INT NOT NULL DEFAULT 0 AFTER nama_ruang;

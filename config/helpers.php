@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Asia/Jakarta');
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -354,6 +356,21 @@ function generateTahunAkademik() {
  */
 function sanitize($input) {
     return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Ambil semua tahun akademik dari semester_settings
+ */
+function getAllTahunAkademik($db) {
+    try {
+        $stmt = $db->prepare("SELECT DISTINCT tahun_akademik FROM semester_settings ORDER BY tahun_akademik DESC");
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        return $result ?: [];
+    } catch (Exception $e) {
+        error_log("Error getting all tahun akademik: " . $e->getMessage());
+        return [];
+    }
 }
 
 // =======================================================
