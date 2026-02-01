@@ -154,20 +154,15 @@ body {
     100% { transform: scale(1); }
 }
 
-/* Notification Animation */
-@keyframes slideInUp {
-    from {
-        transform: translateY(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+/* Countdown Animations */
+@keyframes countdownPulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
-.save-notification {
-    animation: slideInUp 0.3s ease-out;
+.countdown-pulse {
+    animation: countdownPulse 1s infinite;
 }
 
 /* Responsive Design */
@@ -272,10 +267,13 @@ body {
         justify-content: center;
     }
     
-    .save-notification {
-        max-width: 90% !important;
-        margin: 10px;
-        padding: 15px !important;
+    .countdown-unit {
+        min-width: 40px !important;
+        padding: 5px !important;
+    }
+    
+    .countdown-label {
+        font-size: 0.7rem;
     }
 }
 
@@ -322,9 +320,9 @@ body {
         padding: 8px;
     }
     
-    .save-notification {
-        font-size: 14px;
-        padding: 10px !important;
+    .countdown-unit {
+        min-width: 35px !important;
+        font-size: 0.8rem;
     }
 }
 
@@ -388,4 +386,66 @@ body {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* Countdown specific styles */
+.countdown-container {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+    padding: 15px;
+    margin-top: 15px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.countdown-timer {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.countdown-unit {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 12px;
+    border-radius: 10px;
+    margin: 0 3px;
+    min-width: 60px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.countdown-unit:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.countdown-unit > div:first-child {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.countdown-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 3px;
+}
+
+.next-day-info {
+    background: rgba(255, 193, 7, 0.2);
+    border-radius: 10px;
+    padding: 10px 15px;
+    margin-top: 15px;
+    border-left: 4px solid #ffc107;
+    color: white;
+}
+
+.next-day-info strong {
+    color: #ffc107;
 }

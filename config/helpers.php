@@ -85,7 +85,7 @@ function getSetting($db, $key, $default = null) {
 }
 
 /**
- * Wajib login admin
+ * Wajib login admin (bisa admin biasa atau superadmin)
  */
 function requireAdmin() {
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
@@ -94,13 +94,29 @@ function requireAdmin() {
 }
 
 /**
- * Wajib superadmin
+ * Wajib superadmin - hanya untuk fitur tertentu
  */
 function requireSuperAdmin() {
     requireAdmin();
     if ($_SESSION['role'] != 'superadmin') {
-        redirect('dashboard.php', 'Akses ditolak. Hanya superadmin yang dapat mengakses halaman ini.', 'error');
+        // Tentukan halaman saat ini
+        $current_page = basename($_SERVER['PHP_SELF']);
+        
+        // Daftar halaman yang hanya untuk superadmin
+        $superadmin_pages = ['clear_logs.php'];
+        
+        if (in_array($current_page, $superadmin_pages)) {
+            redirect('dashboard.php', 'Akses ditolak. Hanya superadmin yang dapat mengakses halaman ini.', 'error');
+        }
+        // Untuk halaman lain, admin biasa masih bisa akses tapi dengan batasan
     }
+}
+
+/**
+ * Cek apakah user saat ini adalah superadmin
+ */
+function isSuperAdmin() {
+    return isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin';
 }
 
 /**
@@ -526,6 +542,184 @@ function getSemesterById($db, $id) {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Error getting semester by ID: " . $e->getMessage());
+        return false;
+    }
+}
+
+// =======================================================
+// FUNGSI PROTEKSI USER MANAGEMENT (BARU)
+// =======================================================
+
+/**
+ * Cek apakah user dapat mengedit target user
+ */
+function canEditUser($current_user_role, $target_user_role, $is_last_active = false) {
+    // Superadmin dapat mengedit semua kecuali diri sendiri jika terakhir aktif
+    if ($current_user_role === 'superadmin') {
+        return true; // Validasi lebih lanjut di fungsi lain untuk last active
+    }
+    
+    // Admin biasa tidak dapat mengedit superadmin
+    if ($target_user_role === 'superadmin') {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Cek apakah user dapat menonaktifkan target user
+ */
+function canDeactivateUser($db, $current_user_id, $current_user_role, $target_user_id, $target_user_role) {
+    // 1. Tidak dapat menonaktifkan diri sendiri
+    if ($current_user_id == $target_user_id) {
+        return false;
+    }
+    
+    // 2. Admin biasa tidak dapat menonaktifkan superadmin
+    if ($current_user_role !== 'superadmin' && $target_user_role === 'superadmin') {
+        return false;
+    }
+    
+    // 3. Cek apakah ini adalah akun aktif terakhir
+    try {
+        $stmt = $db->prepare("SELECT COUNT(*) as active_count FROM users WHERE is_active = TRUE AND id != ?");
+        $stmt->execute([$target_user_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result['active_count'] == 0) {
+            return false; // Ini adalah akun aktif terakhir
+        }
+    } catch (Exception $e) {
+        error_log("Error checking last active account: " . $e->getMessage());
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Cek apakah user dapat mengubah role target user
+ */
+function canChangeRole($current_user_role, $target_user_role, $new_role) {
+    // Superadmin dapat mengubah semua role
+    if ($current_user_role === 'superadmin') {
+        return true;
+    }
+    
+    // Admin biasa tidak dapat mengubah role superadmin
+    if ($target_user_role === 'superadmin' || $new_role === 'superadmin') {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Validasi apakah user dapat melakukan aksi tertentu pada user lain
+ */
+function validateUserAction($db, $current_user_id, $current_user_role, $target_user_id, $action) {
+    try {
+        // Ambil data target user
+        $stmt = $db->prepare("SELECT role, is_active FROM users WHERE id = ?");
+        $stmt->execute([$target_user_id]);
+        $target_user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$target_user) {
+            return "User tidak ditemukan";
+        }
+        
+        switch ($action) {
+            case 'deactivate':
+                if (!canDeactivateUser($db, $current_user_id, $current_user_role, $target_user_id, $target_user['role'])) {
+                    if ($current_user_role !== 'superadmin' && $target_user['role'] === 'superadmin') {
+                        return "Admin biasa tidak dapat menonaktifkan superadmin";
+                    }
+                    
+                    // Cek apakah ini akun aktif terakhir
+                    $stmt_count = $db->prepare("SELECT COUNT(*) as active_count FROM users WHERE is_active = TRUE AND id != ?");
+                    $stmt_count->execute([$target_user_id]);
+                    $count = $stmt_count->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($count['active_count'] == 0) {
+                        return "Tidak dapat menonaktifkan akun aktif terakhir";
+                    }
+                    
+                    return "Tidak dapat menonaktifkan user ini";
+                }
+                break;
+                
+            case 'change_role':
+                if ($current_user_id == $target_user_id) {
+                    return "Tidak dapat mengubah role sendiri";
+                }
+                
+                if ($current_user_role !== 'superadmin' && $target_user['role'] === 'superadmin') {
+                    return "Admin biasa tidak dapat mengubah role superadmin";
+                }
+                break;
+                
+            case 'delete':
+                if ($current_user_id == $target_user_id) {
+                    return "Tidak dapat menghapus akun sendiri";
+                }
+                
+                if ($current_user_role !== 'superadmin' && $target_user['role'] === 'superadmin') {
+                    return "Admin biasa tidak dapat menghapus superadmin";
+                }
+                
+                // Cek apakah ini akun aktif terakhir
+                if ($target_user['is_active']) {
+                    $stmt_count = $db->prepare("SELECT COUNT(*) as active_count FROM users WHERE is_active = TRUE AND id != ?");
+                    $stmt_count->execute([$target_user_id]);
+                    $count = $stmt_count->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($count['active_count'] == 0) {
+                        return "Tidak dapat menghapus akun aktif terakhir";
+                    }
+                }
+                break;
+        }
+        
+        return null; // Validasi berhasil
+    } catch (Exception $e) {
+        error_log("Error validating user action: " . $e->getMessage());
+        return "Error validasi";
+    }
+}
+
+/**
+ * Hitung jumlah akun aktif
+ */
+function countActiveUsers($db) {
+    try {
+        $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE is_active = TRUE");
+        $stmt->execute();
+        return $stmt->fetchColumn();
+    } catch (Exception $e) {
+        error_log("Error counting active users: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Cek apakah user adalah akun aktif terakhir
+ */
+function isUserLastActive($db, $user_id) {
+    try {
+        // Hitung total akun aktif
+        $total_active = countActiveUsers($db);
+        
+        if ($total_active == 1) {
+            // Cek apakah user ini yang aktif
+            $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE id = ? AND is_active = TRUE");
+            $stmt->execute([$user_id]);
+            return $stmt->fetchColumn() == 1;
+        }
+        
+        return false;
+    } catch (Exception $e) {
+        error_log("Error checking if user is last active: " . $e->getMessage());
         return false;
     }
 }
