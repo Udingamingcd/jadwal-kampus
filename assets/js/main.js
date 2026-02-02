@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error loading room data:', e);
     }
 
-    // Setup auto-refresh untuk jadwal saat ini
+    // Setup auto-refresh untuk jadwal saat ini dengan filter
     setupAutoRefresh();
     
     // Setup responsive behavior
@@ -182,7 +182,7 @@ function showScheduleDetail(schedule) {
 }
 
 function setupAutoRefresh() {
-    // Auto-refresh current schedule every 30 seconds
+    // Auto-refresh current schedule every 30 seconds dengan filter
     setInterval(() => {
         const now = new Date();
         const currentTime = now.toLocaleTimeString('id-ID', { 
@@ -224,89 +224,101 @@ function updateCurrentTime() {
 
 async function updateCurrentSchedule() {
     try {
-        // Get current day and time
-        const now = new Date();
-        const currentTime = now.getHours() * 60 + now.getMinutes();
-        const currentDay = now.getDay(); // 0=Sunday, 1=Monday, etc.
+        // Get current filter state from URL
+        const params = new URLSearchParams(window.location.search);
+        const filterParams = {};
         
-        // Convert to our system (1=Monday, 5=Friday)
-        const dayMap = { 1: 'SENIN', 2: 'SELASA', 3: 'RABU', 4: 'KAMIS', 5: 'JUMAT' };
-        const currentDayText = dayMap[currentDay];
+        if (params.has('hari')) filterParams.hari = params.get('hari');
+        if (params.has('kelas')) filterParams.kelas = params.get('kelas');
+        if (params.has('semua_hari')) filterParams.semua_hari = params.get('semua_hari');
+        if (params.has('semua_kelas')) filterParams.semua_kelas = params.get('semua_kelas');
         
-        if (!currentDayText) return; // Weekend
+        // Build query string with current filter
+        const queryString = new URLSearchParams(filterParams).toString();
         
-        // Make AJAX call to get current schedule
-        const response = await fetch('api/get_current_schedule.php');
+        // Make AJAX call to get current schedule dengan filter
+        const response = await fetch(`api/get_current_schedule.php?${queryString}`);
         if (response.ok) {
             const data = await response.json();
-            updateCurrentScheduleCard(data);
+            updateScheduleCards(data);
+            
+            // Update filter info jika ada
+            if (data.filter_info) {
+                updateFilterDisplay(data.filter_info);
+            }
         }
     } catch (error) {
         console.log('Gagal update jadwal saat ini:', error);
     }
 }
 
-function updateCurrentScheduleCard(data) {
-    const currentCard = document.querySelector('.current-card .card-body');
-    if (!currentCard) return;
-    
-    if (data && data.exists) {
-        const html = `
-            <div class="row align-items-center">
-                <div class="col-md-3">
-                    <div class="current-time">
-                        <h4 class="text-primary">${escapeHtml(data.waktu)}</h4>
-                        <p class="text-muted mb-0">Jam ke-${escapeHtml(data.jam_ke)}</p>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="current-info">
-                        <h4 class="mb-2">${escapeHtml(data.mata_kuliah)}</h4>
-                        <p class="mb-2">
-                            <i class="fas fa-user-tie me-2"></i> 
-                            ${escapeHtml(data.dosen)}
-                        </p>
-                        <p class="mb-2">
-                            <i class="fas fa-door-open me-2"></i> 
-                            Ruang ${escapeHtml(data.ruang)}
-                        </p>
-                        <p class="mb-0">
-                            <i class="fas fa-users me-2"></i> 
-                            Kelas ${escapeHtml(data.kelas)}
-                        </p>
-                    </div>
-                </div>
-                <div class="col-md-3 text-end">
-                    <button class="btn btn-outline-primary btn-detail" 
-                            data-schedule='${JSON.stringify(data)}'>
-                        <i class="fas fa-info-circle me-2"></i> Detail
-                    </button>
-                </div>
-            </div>
-        `;
-        currentCard.innerHTML = html;
-        
-        // Re-attach event listener to new button
-        const newBtn = currentCard.querySelector('.btn-detail');
-        if (newBtn) {
-            newBtn.addEventListener('click', function() {
-                const scheduleData = JSON.parse(this.getAttribute('data-schedule'));
-                showScheduleDetail(scheduleData);
-            });
+function updateScheduleCards(data) {
+    // Update both ongoing and next schedule cards
+    if (data.ongoing) {
+        // Update ongoing card
+        const ongoingCard = document.querySelector('.current-jadwal');
+        if (ongoingCard) {
+            const elements = ongoingCard.querySelectorAll('.text-light');
+            if (elements.length >= 5) {
+                elements[0].textContent = data.ongoing.mata_kuliah;
+                elements[1].textContent = data.ongoing.dosen;
+                elements[2].textContent = 'Ruang ' + data.ongoing.ruang;
+                elements[3].textContent = 'Kelas ' + data.ongoing.kelas;
+                elements[4].textContent = data.ongoing.waktu;
+            }
+            
+            // Update jam ke
+            const jamKeElement = ongoingCard.querySelector('.display-4');
+            if (jamKeElement) {
+                jamKeElement.textContent = data.ongoing.jam_ke;
+            }
+            
+            // Update button data
+            const btn = ongoingCard.querySelector('.btn-detail');
+            if (btn) {
+                btn.setAttribute('data-schedule', JSON.stringify(data.ongoing));
+            }
         }
-    } else {
-        const today = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
-        currentCard.innerHTML = `
-            <div class="text-center py-4">
-                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                <h4 class="text-muted mb-2">Tidak ada jadwal saat ini</h4>
-                <p class="text-muted mb-0">
-                    ${['Sabtu', 'Minggu'].includes(today) 
-                        ? 'Hari ini hari libur' 
-                        : 'Tidak ada jadwal kuliah yang sedang berlangsung'}
-                </p>
-            </div>
-        `;
+    }
+    
+    if (data.next) {
+        // Update next card
+        const nextCard = document.querySelector('.next-jadwal');
+        if (nextCard) {
+            const elements = nextCard.querySelectorAll('.text-light');
+            if (elements.length >= 5) {
+                elements[0].textContent = data.next.mata_kuliah;
+                elements[1].textContent = data.next.dosen;
+                elements[2].textContent = 'Ruang ' + data.next.ruang;
+                elements[3].textContent = 'Kelas ' + data.next.kelas;
+                elements[4].textContent = data.next.waktu;
+            }
+            
+            // Update jam ke
+            const jamKeElement = nextCard.querySelector('.display-4');
+            if (jamKeElement) {
+                jamKeElement.textContent = data.next.jam_ke;
+            }
+            
+            // Update button data
+            const btn = nextCard.querySelector('.btn-detail');
+            if (btn) {
+                btn.setAttribute('data-schedule', JSON.stringify(data.next));
+            }
+        }
+    }
+}
+
+function updateFilterDisplay(filterInfo) {
+    // Update informasi filter di tampilan
+    const filterDisplay = document.getElementById('filterDisplay');
+    if (filterDisplay) {
+        let html = `<div class="current-filter-info">`;
+        html += `<strong>Filter Aktif:</strong> `;
+        html += `<span class="badge bg-primary me-2">${filterInfo.semua_hari ? 'Semua Hari' : filterInfo.hari}</span>`;
+        html += `<span class="badge bg-success">${filterInfo.semua_kelas ? 'Semua Kelas' : filterInfo.kelas}</span>`;
+        html += `</div>`;
+        filterDisplay.innerHTML = html;
     }
 }
 
@@ -461,3 +473,6 @@ function escapeHtml(text) {
 window.showScheduleDetail = showScheduleDetail;
 window.updateCurrentTime = updateCurrentTime;
 window.updateScheduleStatus = updateScheduleStatus;
+window.handleFilterClick = handleFilterClick;
+window.handleShowAllSchedule = handleShowAllSchedule;
+window.handleResetFilter = handleResetFilter;

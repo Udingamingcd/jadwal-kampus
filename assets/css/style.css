@@ -161,8 +161,59 @@ body {
     100% { transform: scale(1); opacity: 1; }
 }
 
-.countdown-pulse {
-    animation: countdownPulse 1s infinite;
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 20px rgba(76, 201, 240, 0.5); }
+    50% { box-shadow: 0 0 30px rgba(76, 201, 240, 0.8); }
+    100% { box-shadow: 0 0 20px rgba(76, 201, 240, 0.5); }
+}
+
+/* Jadwal Berlangsung Highlight */
+.jadwal-berlangsung-highlight {
+    position: relative;
+    overflow: hidden;
+}
+
+.jadwal-berlangsung-highlight::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 100%;
+    background: var(--success);
+    border-radius: 4px 0 0 4px;
+    z-index: 1;
+}
+
+/* Multi Class Badge */
+.multi-class-badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(5px);
+}
+
+/* Info card dalam modal */
+.info-card {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.info-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.info-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.info-card:hover .info-icon {
+    transform: scale(1.1);
 }
 
 /* Responsive Design */
@@ -237,15 +288,6 @@ body {
         padding: 0 15px;
     }
     
-    .status-card {
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    
-    .status-card h5 {
-        font-size: 1rem;
-    }
-    
     .jadwal-section {
         padding: 20px 0;
     }
@@ -274,6 +316,15 @@ body {
     
     .countdown-label {
         font-size: 0.7rem;
+    }
+    
+    .multi-class-info {
+        padding: 10px !important;
+        font-size: 0.85rem;
+    }
+    
+    .jadwal-berlangsung-highlight::before {
+        width: 6px;
     }
 }
 
@@ -323,6 +374,14 @@ body {
     .countdown-unit {
         min-width: 35px !important;
         font-size: 0.8rem;
+    }
+    
+    .multi-class-info .row {
+        gap: 8px;
+    }
+    
+    .multi-class-info .col-md-6 {
+        width: 100% !important;
     }
 }
 
@@ -448,4 +507,89 @@ body {
 
 .next-day-info strong {
     color: #ffc107;
+}
+
+/* Print styles */
+@media print {
+    .current-next-section,
+    .filter-section,
+    .filter-toggle-btn,
+    .sidebar-filter,
+    .overlay {
+        display: none !important;
+    }
+    
+    .jadwal-card {
+        break-inside: avoid;
+        margin-bottom: 20px;
+    }
+}
+
+/* Filter Tab Mobile Improvements */
+.filter-tab {
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.filter-tab:active {
+    transform: scale(0.98);
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+    .filter-tab {
+        min-height: 44px; /* Minimum touch target size */
+        padding: 12px 16px;
+    }
+    
+    .btn {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Smooth transitions */
+.filter-tab,
+.jadwal-card,
+.sidebar-filter,
+.overlay {
+    transition: all 0.3s ease;
+}
+
+/* Accessibility improvements */
+.filter-tab:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Button loading states */
+.btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-top: -8px;
+    margin-left: -8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-primary.loading::after {
+    border-top-color: white;
+}
+
+.btn-outline-secondary.loading::after {
+    border-top-color: #6c757d;
 }
