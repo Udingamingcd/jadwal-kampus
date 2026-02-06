@@ -216,6 +216,17 @@ body {
     transform: scale(1.1);
 }
 
+/* Filter Tab Animation */
+@keyframes filterPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.filter-tab.active {
+    animation: filterPulse 0.5s ease;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .maintenance-content {
@@ -326,6 +337,55 @@ body {
     .jadwal-berlangsung-highlight::before {
         width: 6px;
     }
+    
+    /* Sidebar Mobile */
+    .sidebar-filter {
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 280px;
+        height: 100vh;
+        background: white;
+        z-index: 1050;
+        transition: left 0.3s ease;
+        box-shadow: 5px 0 25px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+    
+    .sidebar-filter.show {
+        left: 0;
+    }
+    
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1049;
+        display: none;
+    }
+    
+    .overlay.show {
+        display: block;
+    }
+    
+    .sidebar-header {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+    }
+    
+    .sidebar-body {
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+    }
+    
+    .sidebar-footer {
+        position: sticky;
+        bottom: 0;
+        background: white;
+    }
 }
 
 @media (min-width: 769px) {
@@ -342,6 +402,10 @@ body {
     }
     
     .sidebar-filter {
+        display: none !important;
+    }
+    
+    .overlay {
         display: none !important;
     }
 }
@@ -396,15 +460,6 @@ body {
 
 .text-primary {
     color: var(--primary) !important;
-}
-
-/* Animation for sidebar */
-.sidebar-filter {
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.overlay {
-    transition: opacity 0.3s ease;
 }
 
 /* Ensure footer text is visible */
@@ -592,4 +647,537 @@ body {
 
 .btn-outline-secondary.loading::after {
     border-top-color: #6c757d;
+}
+
+/* Filter info display */
+.filter-info-display {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    border-left: 3px solid var(--primary);
+}
+
+.filter-info-display .badge {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+}
+
+/* Current schedule collapsed state */
+.current-next-section.collapsed-section {
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.current-next-section.collapsed-section #currentScheduleContent {
+    display: none;
+}
+
+/* Refresh button animation */
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.btn-refresh:active i {
+    animation: rotate 0.5s linear;
+}
+
+/* Filter section animation */
+.filter-section {
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Schedule card hover effects */
+.schedule-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.schedule-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+/* Active schedule border animation */
+@keyframes borderGlow {
+    0% { box-shadow: 0 0 5px rgba(76, 201, 240, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(76, 201, 240, 0.8); }
+    100% { box-shadow: 0 0 5px rgba(76, 201, 240, 0.5); }
+}
+
+.jadwal-card.active {
+    animation: borderGlow 2s infinite;
+}
+
+/* Modal animations */
+.modal.fade .modal-dialog {
+    transform: translateY(-50px);
+    transition: transform 0.3s ease-out;
+}
+
+.modal.show .modal-dialog {
+    transform: translateY(0);
+}
+
+/* Mobile sidebar close button */
+.sidebar-header .btn-close {
+    filter: invert(1);
+    opacity: 0.8;
+}
+
+.sidebar-header .btn-close:hover {
+    opacity: 1;
+}
+
+/* Filter tab icon animation */
+.filter-tab i {
+    transition: transform 0.3s ease;
+}
+
+.filter-tab.active i {
+    transform: scale(1.2);
+}
+
+.filter-tab:hover i {
+    transform: translateY(-2px);
+}
+
+/* Schedule status indicators */
+.schedule-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.schedule-status.ongoing {
+    background-color: var(--success);
+    box-shadow: 0 0 10px var(--success);
+}
+
+.schedule-status.upcoming {
+    background-color: var(--primary);
+    box-shadow: 0 0 10px var(--primary);
+}
+
+.schedule-status.finished {
+    background-color: var(--secondary);
+}
+
+/* Responsive table */
+.table-responsive {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* Custom scrollbar for sidebar */
+.sidebar-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.sidebar-body::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--primary-light);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: var(--primary-light);
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    color: var(--dark);
+    margin-bottom: 15px;
+}
+
+.empty-state p {
+    color: #666;
+    margin-bottom: 25px;
+}
+
+/* Card hover effects */
+.card-hover-effect {
+    transition: all 0.3s ease;
+}
+
+.card-hover-effect:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Badge animations */
+.badge {
+    transition: all 0.3s ease;
+}
+
+.badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Alert animations */
+.alert {
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Form control focus effects */
+.form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+}
+
+/* Custom checkbox */
+.custom-checkbox .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Tooltip styling */
+.tooltip-inner {
+    background-color: var(--dark);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: var(--dark);
+}
+
+/* Progress bar styling */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--primary-light);
+}
+
+.progress-bar {
+    background-color: var(--primary);
+    border-radius: 4px;
+}
+
+/* Custom range slider */
+.form-range::-webkit-slider-thumb {
+    background-color: var(--primary);
+}
+
+.form-range::-moz-range-thumb {
+    background-color: var(--primary);
+}
+
+/* Dropdown menu styling */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.dropdown-item {
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+}
+
+.dropdown-item:hover {
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+/* Pagination styling */
+.page-link {
+    color: var(--primary);
+    border: none;
+    margin: 0 2px;
+    border-radius: 8px;
+}
+
+.page-link:hover {
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Custom toggle switch */
+.form-switch .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Custom file upload */
+.form-control-file:hover {
+    cursor: pointer;
+}
+
+/* Search box styling */
+.search-box {
+    position: relative;
+}
+
+.search-box .form-control {
+    padding-right: 40px;
+}
+
+.search-box .search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+/* Notification badge */
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    background-color: var(--danger);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+/* Custom tab navigation */
+.nav-tabs {
+    border-bottom: 2px solid var(--primary-light);
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: #666;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 10px 10px 0 0;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--primary);
+    background-color: var(--primary-light);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary);
+    background-color: white;
+    border-bottom: 3px solid var(--primary);
+}
+
+/* Custom accordion */
+.accordion-button:not(.collapsed) {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    box-shadow: none;
+}
+
+.accordion-button:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+}
+
+/* Timeline styling */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--primary-light);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -23px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    border: 2px solid white;
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Stats card */
+.stats-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 5px;
+}
+
+.stats-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Floating action button */
+.fab {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 10px 25px rgba(67, 97, 238, 0.3);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.fab:hover {
+    transform: scale(1.1);
+    box-shadow: 0 15px 35px rgba(67, 97, 238, 0.4);
+    color: white;
+}
+
+/* Back to top button */
+.back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.back-to-top.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.back-to-top:hover {
+    background: var(--secondary);
+    color: white;
+    transform: translateY(-3px);
 }

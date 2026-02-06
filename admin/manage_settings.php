@@ -3,7 +3,7 @@ require_once '../config/database.php';
 require_once '../config/helpers.php';
 
 require_once 'check_auth.php';
-requireSuperAdmin();
+requireAdmin(); // Semua admin bisa akses (dulu: requireSuperAdmin())
 
 $database = new Database();
 $db = $database->getConnection();
@@ -45,7 +45,6 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             min-height: 100vh;
             position: fixed;
             width: 250px;
-            z-index: 1000;
         }
         .main-content {
             margin-left: 250px;
@@ -57,6 +56,19 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             background: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 15px 0;
+        }
+        .card-stat {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card-stat:hover {
+            transform: translateY(-5px);
+        }
+        .stat-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
         }
         .sidebar .nav-link {
             color: rgba(255,255,255,0.8);
@@ -84,29 +96,6 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             color: white;
             font-weight: bold;
         }
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: relative;
-                min-height: auto;
-                display: none;
-            }
-            .sidebar.mobile-show {
-                display: block;
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .mobile-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 999;
-            }
-        }
         .content-wrapper {
             padding-top: 20px;
         }
@@ -129,19 +118,75 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             padding: 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                min-height: auto;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="d-flex">
-        <!-- Sidebar -->
-        <?php include 'templates/sidebar.php'; ?>
+        <!-- Sidebar Desktop -->
+        <div class="sidebar d-none d-md-block">
+            <div class="p-4">
+                <h3 class="mb-4"><i class="fas fa-calendar-alt"></i> Admin Panel</h3>
+                <div class="user-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <div class="user-avatar me-3">
+                            <?php echo strtoupper(substr($_SESSION['username'], 0, 1)); ?>
+                        </div>
+                        <div>
+                            <h6 class="mb-0"><?php echo htmlspecialchars($_SESSION['username']); ?></h6>
+                            <small class="text-muted"><?php echo ucfirst($_SESSION['role']); ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav flex-column">
+                <a class="nav-link" href="dashboard.php">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link" href="manage_schedule.php">
+                    <i class="fas fa-calendar"></i> Kelola Jadwal
+                </a>
+                <a class="nav-link" href="manage_rooms.php">
+                    <i class="fas fa-door-open"></i> Kelola Ruangan
+                </a>
+                <a class="nav-link" href="manage_semester.php">
+                    <i class="fas fa-calendar-alt"></i> Kelola Semester
+                </a>
+                <a class="nav-link active" href="manage_settings.php">
+                    <i class="fas fa-cog"></i> Pengaturan
+                </a>
+                <a class="nav-link" href="manage_users.php">
+                    <i class="fas fa-users"></i> Kelola Admin
+                </a>
+                <a class="nav-link" href="reports.php">
+                    <i class="fas fa-chart-bar"></i> Laporan
+                </a>
+                <div class="mt-4"></div>
+                <a class="nav-link" href="profile.php">
+                    <i class="fas fa-user"></i> Profile
+                </a>
+                <a class="nav-link" href="logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </nav>
+        </div>
 
         <!-- Main Content -->
         <div class="main-content flex-grow-1">
             <!-- Navbar -->
             <nav class="navbar navbar-expand-lg navbar-custom mb-4">
                 <div class="container-fluid">
-                    <button class="navbar-toggler d-md-none" type="button" onclick="toggleMobileSidebar()">
+                    <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#mobileSidebar">
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="d-flex align-items-center">
@@ -167,6 +212,45 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     </div>
                 </div>
             </nav>
+
+            <!-- Mobile Sidebar -->
+            <div class="collapse d-md-none mb-4" id="mobileSidebar">
+                <div class="card">
+                    <div class="card-body">
+                       
+                        <nav class="nav flex-column">
+                            <a class="nav-link" href="dashboard.php">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a class="nav-link" href="manage_schedule.php">
+                                <i class="fas fa-calendar"></i> Kelola Jadwal
+                            </a>
+                            <a class="nav-link" href="manage_rooms.php">
+                                <i class="fas fa-door-open"></i> Kelola Ruangan
+                            </a>
+                            <a class="nav-link" href="manage_semester.php">
+                                <i class="fas fa-calendar-alt"></i> Kelola Semester
+                            </a>
+                            <a class="nav-link active" href="manage_settings.php">
+                                <i class="fas fa-cog"></i> Pengaturan
+                            </a>
+                            <a class="nav-link" href="manage_users.php">
+                                <i class="fas fa-users"></i> Kelola Admin
+                            </a>
+                            <a class="nav-link" href="reports.php">
+                                <i class="fas fa-chart-bar"></i> Laporan
+                            </a>
+                            <hr>
+                            <a class="nav-link" href="profile.php">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a class="nav-link" href="logout.php">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
 
             <!-- Content -->
             <div class="content-wrapper">
@@ -260,10 +344,11 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     </form>
                 </div>
                 
-                <!-- Danger Zone -->
+                <!-- Danger Zone - Hanya untuk Superadmin -->
+                <?php if(isSuperAdmin()): ?>
                 <div class="card border-danger">
                     <div class="card-header bg-danger text-white">
-                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Zona Berbahaya</h5>
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Zona Berbahaya (Hanya Superadmin)</h5>
                     </div>
                     <div class="card-body">
                         <p class="text-danger"><i class="fas fa-info-circle me-2"></i>Hati-hati! Aksi di bawah ini tidak dapat dibatalkan.</p>
@@ -292,40 +377,25 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                         </div>
                     </div>
                 </div>
+                <?php else: ?>
+                <div class="card border-secondary">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-lock me-2"></i>Akses Terbatas</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Fitur zona berbahaya hanya dapat diakses oleh Superadmin.
+                            Hubungi Superadmin untuk aksi-aksi seperti reset data, backup database, atau hapus log.
+                        </p>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('.mobile-sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-            
-            if (sidebar.style.display === 'block') {
-                sidebar.style.display = 'none';
-                if (overlay) overlay.remove();
-            } else {
-                sidebar.style.display = 'block';
-                // Tambah overlay
-                if (!overlay) {
-                    const overlayDiv = document.createElement('div');
-                    overlayDiv.className = 'mobile-overlay';
-                    overlayDiv.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.5);
-                        z-index: 1000;
-                    `;
-                    overlayDiv.onclick = toggleMobileSidebar;
-                    document.body.appendChild(overlayDiv);
-                }
-            }
-        }
-    </script>
 </body>
 </html>

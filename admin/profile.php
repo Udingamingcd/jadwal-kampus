@@ -65,6 +65,9 @@ if(isset($_POST['update_profile'])) {
         }
     }
 }
+
+// Tentukan halaman aktif untuk mobile sidebar
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -127,20 +130,8 @@ if(isset($_POST['update_profile'])) {
                 min-height: auto;
                 display: none;
             }
-            .sidebar.mobile-show {
-                display: block;
-            }
             .main-content {
                 margin-left: 0;
-            }
-            .mobile-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 999;
             }
         }
         .content-wrapper {
@@ -191,23 +182,81 @@ if(isset($_POST['update_profile'])) {
             height: 5px;
             margin-top: 5px;
             border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s;
         }
         .strength-weak { background-color: #dc3545; }
         .strength-medium { background-color: #ffc107; }
         .strength-strong { background-color: #28a745; }
+        .card-stat {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .stat-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
     <div class="d-flex">
-        <!-- Sidebar -->
-        <?php include 'templates/sidebar.php'; ?>
+        <!-- Sidebar Desktop -->
+        <div class="sidebar d-none d-md-block">
+            <div class="p-4">
+                <h3 class="mb-4"><i class="fas fa-calendar-alt"></i> Admin Panel</h3>
+                <div class="user-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <div class="user-avatar me-3">
+                            <?php echo strtoupper(substr($_SESSION['username'], 0, 1)); ?>
+                        </div>
+                        <div>
+                            <h6 class="mb-0"><?php echo htmlspecialchars($_SESSION['username']); ?></h6>
+                            <small class="text-muted"><?php echo ucfirst($_SESSION['role']); ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav flex-column">
+                <a class="nav-link <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_schedule.php' ? 'active' : ''; ?>" href="manage_schedule.php">
+                    <i class="fas fa-calendar"></i> Kelola Jadwal
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_rooms.php' ? 'active' : ''; ?>" href="manage_rooms.php">
+                    <i class="fas fa-door-open"></i> Kelola Ruangan
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_semester.php' ? 'active' : ''; ?>" href="manage_semester.php">
+                    <i class="fas fa-calendar-alt"></i> Kelola Semester
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_settings.php' ? 'active' : ''; ?>" href="manage_settings.php">
+                    <i class="fas fa-cog"></i> Pengaturan
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_users.php' ? 'active' : ''; ?>" href="manage_users.php">
+                    <i class="fas fa-users"></i> Kelola Admin
+                </a>
+                <a class="nav-link <?php echo $current_page == 'reports.php' ? 'active' : ''; ?>" href="reports.php">
+                    <i class="fas fa-chart-bar"></i> Laporan
+                </a>
+                <div class="mt-4"></div>
+                <a class="nav-link <?php echo $current_page == 'profile.php' ? 'active' : ''; ?>" href="profile.php">
+                    <i class="fas fa-user"></i> Profile
+                </a>
+                <a class="nav-link" href="logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </nav>
+        </div>
 
         <!-- Main Content -->
         <div class="main-content flex-grow-1">
             <!-- Navbar -->
             <nav class="navbar navbar-expand-lg navbar-custom mb-4">
                 <div class="container-fluid">
-                    <button class="navbar-toggler d-md-none" type="button" onclick="toggleMobileSidebar()">
+                    <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#mobileSidebar">
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="d-flex align-items-center">
@@ -233,6 +282,44 @@ if(isset($_POST['update_profile'])) {
                     </div>
                 </div>
             </nav>
+
+            <!-- Mobile Sidebar -->
+            <div class="collapse d-md-none mb-4" id="mobileSidebar">
+                <div class="card">
+                    <div class="card-body">
+                        <nav class="nav flex-column">
+                            <a class="nav-link <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a class="nav-link <?php echo $current_page == 'manage_schedule.php' ? 'active' : ''; ?>" href="manage_schedule.php">
+                                <i class="fas fa-calendar"></i> Kelola Jadwal
+                            </a>
+                            <a class="nav-link <?php echo $current_page == 'manage_rooms.php' ? 'active' : ''; ?>" href="manage_rooms.php">
+                                <i class="fas fa-door-open"></i> Kelola Ruangan
+                            </a>
+                            <a class="nav-link <?php echo $current_page == 'manage_semester.php' ? 'active' : ''; ?>" href="manage_semester.php">
+                                <i class="fas fa-calendar-alt"></i> Kelola Semester
+                            </a>
+                            <a class="nav-link <?php echo $current_page == 'manage_settings.php' ? 'active' : ''; ?>" href="manage_settings.php">
+                                <i class="fas fa-cog"></i> Pengaturan
+                            </a>
+                            <a class="nav-link <?php echo $current_page == 'manage_users.php' ? 'active' : ''; ?>" href="manage_users.php">
+                                <i class="fas fa-users"></i> Kelola Admin
+                            </a>
+                            <a class="nav-link <?php echo $current_page == 'reports.php' ? 'active' : ''; ?>" href="reports.php">
+                                <i class="fas fa-chart-bar"></i> Laporan
+                            </a>
+                            <hr>
+                            <a class="nav-link <?php echo $current_page == 'profile.php' ? 'active' : ''; ?>" href="profile.php">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a class="nav-link" href="logout.php">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
 
             <!-- Content -->
             <div class="content-wrapper">
@@ -462,34 +549,6 @@ if(isset($_POST['update_profile'])) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('.mobile-sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-            
-            if (sidebar.style.display === 'block') {
-                sidebar.style.display = 'none';
-                if (overlay) overlay.remove();
-            } else {
-                sidebar.style.display = 'block';
-                // Tambah overlay
-                if (!overlay) {
-                    const overlayDiv = document.createElement('div');
-                    overlayDiv.className = 'mobile-overlay';
-                    overlayDiv.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.5);
-                        z-index: 1000;
-                    `;
-                    overlayDiv.onclick = toggleMobileSidebar;
-                    document.body.appendChild(overlayDiv);
-                }
-            }
-        }
-        
         function togglePassword(passwordId, button) {
             const passwordInput = document.getElementById(passwordId);
             const icon = button.querySelector('i');

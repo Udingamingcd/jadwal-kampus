@@ -1,48 +1,181 @@
-// Main JavaScript untuk halaman index
-
 // Global variables
 let ruanganData = {};
+let filterState = {};
 
 // Initialize on DOM loaded
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing...');
+    
     // Load room data from page attribute
     try {
         const ruanganAttr = document.body.getAttribute('data-ruangan');
         if (ruanganAttr) {
             ruanganData = JSON.parse(ruanganAttr);
+            console.log('Room data loaded:', Object.keys(ruanganData).length, 'rooms');
         }
     } catch (e) {
         console.error('Error loading room data:', e);
     }
 
-    // Setup auto-refresh untuk jadwal saat ini dengan filter
+    // Load filter state
+    initializeFilterState();
+    
+    // Setup auto-refresh
     setupAutoRefresh();
     
     // Setup responsive behavior
     setupResponsiveBehavior();
     
-    // Cek dan update waktu jadwal
-    updateScheduleStatus();
+    // Setup event listeners - using event delegation
+    setupEventDelegation();
     
-    // Setup maintenance mode handling
-    setupMaintenanceMode();
+    // Update UI based on filter state
+    updateFilterUI();
     
-    // Update current time initially
-    updateCurrentTime();
+    console.log('Initialization complete');
 });
 
+function initializeFilterState() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        filterState = {
+            hari: urlParams.get('hari') || null,
+            semua_hari: urlParams.get('semua_hari') === '1',
+            kelas: urlParams.get('kelas') || null,
+            semua_kelas: urlParams.get('semua_kelas') === '1'
+        };
+        
+        console.log('Filter state initialized:', filterState);
+    } catch (e) {
+        console.error('Error loading filter state:', e);
+        filterState = {
+            hari: null,
+            semua_hari: false,
+            kelas: null,
+            semua_kelas: false
+        };
+    }
+}
+
+function setupEventDelegation() {
+    console.log('Setting up event delegation...');
+    
+    // Single event listener for all clicks using delegation
+    document.addEventListener('click', function(e) {
+        // Handle filter tabs
+        const filterTab = e.target.closest('.filter-tab');
+        if (filterTab) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleFilterTabClick(filterTab);
+            return;
+        }
+        
+        // Handle detail buttons
+        const detailBtn = e.target.closest('.btn-detail');
+        if (detailBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleDetailButtonClick(detailBtn);
+            return;
+        }
+        
+        // Handle mobile filter toggle
+        const filterToggle = e.target.closest('.filter-toggle-btn');
+        if (filterToggle) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSidebar();
+            return;
+        }
+        
+        // Handle sidebar close button
+        const closeBtn = e.target.closest('.sidebar-filter .btn-close');
+        if (closeBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSidebar();
+            return;
+        }
+        
+        // Handle refresh button
+        const refreshBtn = e.target.closest('.btn-refresh');
+        if (refreshBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            refreshCurrentSchedule(e);
+            return;
+        }
+        
+        // Handle overlay click
+        const overlay = e.target.closest('#sidebarOverlay');
+        if (overlay) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSidebar();
+            return;
+        }
+    });
+    
+    // Handle keyboard events
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const sidebar = document.getElementById('mobileSidebar');
+            if (sidebar && sidebar.classList.contains('show')) {
+                toggleSidebar();
+            }
+        }
+    });
+}
+
+function handleFilterTabClick(filterTab) {
+    const type = filterTab.getAttribute('data-type');
+    const value = filterTab.getAttribute('data-value');
+    
+    if (type === 'hari') {
+        filterState.hari = value;
+        filterState.semua_hari = false;
+    } else if (type === 'semua_hari') {
+        filterState.semua_hari = true;
+        filterState.hari = null;
+    } else if (type === 'kelas') {
+        filterState.kelas = value;
+        filterState.semua_kelas = false;
+    } else if (type === 'semua_kelas') {
+        filterState.semua_kelas = true;
+        filterState.kelas = null;
+    }
+    
+    applyFilter();
+}
+
+function handleDetailButtonClick(detailBtn) {
+    try {
+        const scheduleData = detailBtn.getAttribute('data-schedule');
+        if (scheduleData) {
+            const schedule = JSON.parse(scheduleData);
+            showScheduleDetail(schedule);
+        }
+    } catch (error) {
+        console.error('Error parsing schedule data:', error);
+        alert('Terjadi kesalahan saat memuat detail jadwal');
+    }
+}
+
 function showScheduleDetail(schedule) {
-    // Get room data
     const ruang = ruanganData[schedule.ruang] || {};
     
     const modalBody = document.getElementById('scheduleDetail');
+    if (!modalBody) {
+        console.error('Modal body not found');
+        return;
+    }
     
-    // Format waktu yang lebih user-friendly
     const waktuParts = schedule.waktu.split(' - ');
     const waktuFormatted = waktuParts.length === 2 ? 
         `${waktuParts[0]} - ${waktuParts[1]}` : schedule.waktu;
     
-    // Determine current status
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
     const [startHour, startMinute] = waktuParts[0].split(':').map(Number);
@@ -59,7 +192,7 @@ function showScheduleDetail(schedule) {
         statusBadge = `<span class="badge bg-secondary mb-3"><i class="fas fa-check-circle me-1"></i> Selesai</span>`;
     }
     
-    let html = `
+    const html = `
         <div class="schedule-detail">
             ${statusBadge}
             <div class="detail-header mb-4">
@@ -139,7 +272,6 @@ function showScheduleDetail(schedule) {
                          class="img-fluid rounded-3 w-100" 
                          style="max-height: 300px; object-fit: cover;"
                          onerror="this.onerror=null; this.src='https://via.placeholder.com/800x400/4361ee/ffffff?text=RUANG+${escapeHtml(schedule.ruang)}'">
-                    <div class="photo-overlay position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-10 rounded-3"></div>
                 </div>
             </div>
             ` : ''}
@@ -171,18 +303,113 @@ function showScheduleDetail(schedule) {
     
     modalBody.innerHTML = html;
     
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
-    modal.show();
-    
-    // Handle modal close
-    modal._element.addEventListener('hidden.bs.modal', function () {
-        modalBody.innerHTML = '';
+    const modalElement = document.getElementById('scheduleModal');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            modalBody.innerHTML = '';
+        });
+    }
+}
+
+function updateFilterUI() {
+    // Reset all active tabs
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
     });
+    
+    // Activate based on filter state
+    if (filterState.semua_hari) {
+        document.querySelectorAll('.filter-tab[data-type="semua_hari"]').forEach(tab => {
+            tab.classList.add('active');
+        });
+    } else if (filterState.hari) {
+        document.querySelectorAll(`.filter-tab[data-type="hari"][data-value="${filterState.hari}"]`).forEach(tab => {
+            tab.classList.add('active');
+        });
+    }
+    
+    if (filterState.semua_kelas) {
+        document.querySelectorAll('.filter-tab[data-type="semua_kelas"]').forEach(tab => {
+            tab.classList.add('active');
+        });
+    } else if (filterState.kelas) {
+        document.querySelectorAll(`.filter-tab[data-type="kelas"][data-value="${filterState.kelas}"]`).forEach(tab => {
+            tab.classList.add('active');
+        });
+    }
+    
+    updateFilterInfoDisplay();
+}
+
+function updateFilterInfoDisplay() {
+    const hariMap = {
+        '1': 'SENIN',
+        '2': 'SELASA',
+        '3': 'RABU',
+        '4': 'KAMIS',
+        '5': 'JUMAT'
+    };
+    
+    const hariFilter = filterState.semua_hari ? 'Semua Hari' : 
+                      (filterState.hari ? hariMap[filterState.hari] : 'Hari Ini');
+    
+    const kelasFilter = filterState.semua_kelas ? 'Semua Kelas' : 
+                       (filterState.kelas || 'Pilih Kelas');
+    
+    const infoBox = document.querySelector('.filter-info-display');
+    if (infoBox) {
+        infoBox.innerHTML = `
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-primary">
+                    <i class="fas fa-calendar me-1"></i> ${hariFilter}
+                </span>
+                <span class="badge bg-success">
+                    <i class="fas fa-users me-1"></i> ${kelasFilter}
+                </span>
+                ${filterState.semua_hari ? '<span class="badge bg-warning text-dark"><i class="fas fa-eye me-1"></i> Semua Hari Aktif</span>' : ''}
+                ${filterState.semua_kelas ? '<span class="badge bg-info"><i class="fas fa-layer-group me-1"></i> Semua Kelas Aktif</span>' : ''}
+            </div>
+        `;
+    }
+}
+
+function applyFilter() {
+    const params = new URLSearchParams();
+    
+    if (filterState.semua_hari) {
+        params.append('semua_hari', '1');
+    } else if (filterState.hari) {
+        params.append('hari', filterState.hari);
+    }
+    
+    if (filterState.semua_kelas) {
+        params.append('semua_kelas', '1');
+    } else if (filterState.kelas) {
+        params.append('kelas', filterState.kelas);
+    }
+    
+    // Simpan filter ke localStorage sebelum redirect
+    try {
+        const filterData = {
+            hari: filterState.hari,
+            semua_hari: filterState.semua_hari,
+            kelas: filterState.kelas,
+            semua_kelas: filterState.semua_kelas,
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem('jadwalFilter', JSON.stringify(filterData));
+    } catch (e) {
+        // Silent fail
+        console.error('Error saving filter to localStorage:', e);
+    }
+    
+    window.location.href = 'index.php?' + params.toString();
 }
 
 function setupAutoRefresh() {
-    // Auto-refresh current schedule every 30 seconds dengan filter
     setInterval(() => {
         const now = new Date();
         const currentTime = now.toLocaleTimeString('id-ID', { 
@@ -191,199 +418,21 @@ function setupAutoRefresh() {
             hour12: false
         });
         
-        // Update time badge
         const timeBadge = document.getElementById('currentTime');
         if (timeBadge) {
             timeBadge.textContent = currentTime;
         }
         
-        // Check if we need to reload for schedule changes
         const minutes = now.getMinutes();
         if (minutes === 0 || minutes === 30) {
             updateCurrentSchedule();
         }
         
-        // Update schedule status
         updateScheduleStatus();
-    }, 30000); // 30 seconds
-}
-
-function updateCurrentTime() {
-    const now = new Date();
-    const currentTime = now.toLocaleTimeString('id-ID', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false
-    });
-    
-    const timeBadge = document.getElementById('currentTime');
-    if (timeBadge) {
-        timeBadge.textContent = currentTime;
-    }
-}
-
-async function updateCurrentSchedule() {
-    try {
-        // Get current filter state from URL
-        const params = new URLSearchParams(window.location.search);
-        const filterParams = {};
-        
-        if (params.has('hari')) filterParams.hari = params.get('hari');
-        if (params.has('kelas')) filterParams.kelas = params.get('kelas');
-        if (params.has('semua_hari')) filterParams.semua_hari = params.get('semua_hari');
-        if (params.has('semua_kelas')) filterParams.semua_kelas = params.get('semua_kelas');
-        
-        // Build query string with current filter
-        const queryString = new URLSearchParams(filterParams).toString();
-        
-        // Make AJAX call to get current schedule dengan filter
-        const response = await fetch(`api/get_current_schedule.php?${queryString}`);
-        if (response.ok) {
-            const data = await response.json();
-            updateScheduleCards(data);
-            
-            // Update filter info jika ada
-            if (data.filter_info) {
-                updateFilterDisplay(data.filter_info);
-            }
-        }
-    } catch (error) {
-        console.log('Gagal update jadwal saat ini:', error);
-    }
-}
-
-function updateScheduleCards(data) {
-    // Update both ongoing and next schedule cards
-    if (data.ongoing) {
-        // Update ongoing card
-        const ongoingCard = document.querySelector('.current-jadwal');
-        if (ongoingCard) {
-            const elements = ongoingCard.querySelectorAll('.text-light');
-            if (elements.length >= 5) {
-                elements[0].textContent = data.ongoing.mata_kuliah;
-                elements[1].textContent = data.ongoing.dosen;
-                elements[2].textContent = 'Ruang ' + data.ongoing.ruang;
-                elements[3].textContent = 'Kelas ' + data.ongoing.kelas;
-                elements[4].textContent = data.ongoing.waktu;
-            }
-            
-            // Update jam ke
-            const jamKeElement = ongoingCard.querySelector('.display-4');
-            if (jamKeElement) {
-                jamKeElement.textContent = data.ongoing.jam_ke;
-            }
-            
-            // Update button data
-            const btn = ongoingCard.querySelector('.btn-detail');
-            if (btn) {
-                btn.setAttribute('data-schedule', JSON.stringify(data.ongoing));
-            }
-        }
-    }
-    
-    if (data.next) {
-        // Update next card
-        const nextCard = document.querySelector('.next-jadwal');
-        if (nextCard) {
-            const elements = nextCard.querySelectorAll('.text-light');
-            if (elements.length >= 5) {
-                elements[0].textContent = data.next.mata_kuliah;
-                elements[1].textContent = data.next.dosen;
-                elements[2].textContent = 'Ruang ' + data.next.ruang;
-                elements[3].textContent = 'Kelas ' + data.next.kelas;
-                elements[4].textContent = data.next.waktu;
-            }
-            
-            // Update jam ke
-            const jamKeElement = nextCard.querySelector('.display-4');
-            if (jamKeElement) {
-                jamKeElement.textContent = data.next.jam_ke;
-            }
-            
-            // Update button data
-            const btn = nextCard.querySelector('.btn-detail');
-            if (btn) {
-                btn.setAttribute('data-schedule', JSON.stringify(data.next));
-            }
-        }
-    }
-}
-
-function updateFilterDisplay(filterInfo) {
-    // Update informasi filter di tampilan
-    const filterDisplay = document.getElementById('filterDisplay');
-    if (filterDisplay) {
-        let html = `<div class="current-filter-info">`;
-        html += `<strong>Filter Aktif:</strong> `;
-        html += `<span class="badge bg-primary me-2">${filterInfo.semua_hari ? 'Semua Hari' : filterInfo.hari}</span>`;
-        html += `<span class="badge bg-success">${filterInfo.semua_kelas ? 'Semua Kelas' : filterInfo.kelas}</span>`;
-        html += `</div>`;
-        filterDisplay.innerHTML = html;
-    }
-}
-
-function updateScheduleStatus() {
-    // Update status jadwal (berlangsung/selesai/mendatang)
-    const scheduleCards = document.querySelectorAll('.schedule-card');
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute;
-    
-    scheduleCards.forEach(card => {
-        const waktuText = card.querySelector('.badge.bg-primary')?.textContent;
-        if (waktuText && waktuText.includes(' - ')) {
-            const [start, end] = waktuText.split(' - ');
-            const [startHour, startMinute] = start.split(':').map(Number);
-            const [endHour, endMinute] = end.split(':').map(Number);
-            
-            const startTime = startHour * 60 + startMinute;
-            const endTime = endHour * 60 + endMinute;
-            
-            // Reset classes
-            card.classList.remove('border-success', 'border-primary', 'border-secondary');
-            
-            if (currentTime >= startTime && currentTime <= endTime) {
-                // Ongoing
-                card.classList.add('border-success');
-                card.style.borderWidth = '3px';
-                card.style.boxShadow = '0 0 20px rgba(76, 201, 240, 0.3)';
-            } else if (currentTime < startTime) {
-                // Upcoming
-                card.classList.add('border-primary');
-                card.style.borderWidth = '2px';
-                card.style.boxShadow = '0 0 15px rgba(67, 97, 238, 0.2)';
-            } else {
-                // Finished
-                card.classList.add('border-secondary');
-                card.style.borderWidth = '1px';
-                card.style.boxShadow = 'none';
-                card.style.opacity = '0.85';
-            }
-        }
-    });
+    }, 30000);
 }
 
 function setupResponsiveBehavior() {
-    // Handle responsive filter buttons
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            // Remove active class from siblings in same group
-            const radio = this.querySelector('input[type="radio"]');
-            if (radio) {
-                const groupName = radio.name;
-                const groupButtons = document.querySelectorAll(`.filter-btn input[name="${groupName}"]`);
-                groupButtons.forEach(input => {
-                    input.parentElement.classList.remove('active');
-                });
-                this.classList.add('active');
-            }
-        });
-    });
-    
-    // Handle window resize
     let resizeTimer;
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimer);
@@ -392,72 +441,20 @@ function setupResponsiveBehavior() {
         }, 250);
     });
     
-    // Initial layout update
     updateScheduleCardLayout();
 }
 
 function updateScheduleCardLayout() {
     const width = window.innerWidth;
-    const cards = document.querySelectorAll('.schedule-card');
+    const cards = document.querySelectorAll('.jadwal-card');
     
     if (width < 768) {
-        // Mobile layout adjustments
         cards.forEach(card => {
-            const body = card.querySelector('.card-body');
-            const header = card.querySelector('.card-header');
-            
-            // Make time badge more prominent on mobile
-            const timeBadge = header?.querySelector('.badge');
-            if (timeBadge) {
-                timeBadge.classList.add('fs-6', 'px-3', 'py-2');
-            }
-            
-            // Adjust card body padding
+            const body = card.querySelector('.jadwal-body');
             if (body) {
                 body.style.padding = '15px';
             }
         });
-        
-        // Adjust filter buttons for mobile
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        filterBtns.forEach(btn => {
-            btn.style.padding = '12px 10px';
-            btn.style.fontSize = '14px';
-        });
-    } else {
-        // Desktop layout
-        cards.forEach(card => {
-            const timeBadge = card.querySelector('.badge');
-            if (timeBadge) {
-                timeBadge.classList.remove('fs-6', 'px-3', 'py-2');
-            }
-        });
-    }
-}
-
-function setupMaintenanceMode() {
-    const maintenanceModal = document.getElementById('maintenanceModal');
-    if (maintenanceModal) {
-        // Prevent interaction with background
-        document.body.style.overflow = 'hidden';
-        
-        // Focus on modal
-        maintenanceModal.focus();
-        
-        // Block keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Tab' || e.key === 'Escape') {
-                e.preventDefault();
-            }
-        });
-        
-        // Add click outside to prevent interaction
-        maintenanceModal.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-        
-        // Add blur effect to body
-        document.body.classList.add('maintenance-active');
     }
 }
 
@@ -469,10 +466,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Export functions for global use
+// Make functions globally available
 window.showScheduleDetail = showScheduleDetail;
-window.updateCurrentTime = updateCurrentTime;
-window.updateScheduleStatus = updateScheduleStatus;
-window.handleFilterClick = handleFilterClick;
-window.handleShowAllSchedule = handleShowAllSchedule;
-window.handleResetFilter = handleResetFilter;
+window.toggleSidebar = toggleSidebar;
+window.handleFilterClick = handleFilterTabClick;
+window.applyFilter = applyFilter;
+window.updateFilterUI = updateFilterUI;
+
+// Helper functions for current schedule
+function updateCurrentSchedule() {
+    // This function can be expanded to update the current schedule display
+    console.log('Updating current schedule...');
+}
+
+function updateScheduleStatus() {
+    // This function can be expanded to update schedule status indicators
+    console.log('Updating schedule status...');
+}

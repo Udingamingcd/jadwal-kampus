@@ -1,8 +1,15 @@
 <?php
-// Cek status session sebelum memulai
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// =======================================================
+// CEK SESSION & LOGIN DENGAN PENCEGAHAN BYPASS
+// =======================================================
+
+require_once __DIR__ . '/../config/helpers.php';
+
+// Panggil fungsi validasi session
+validateSession();
+
+// Cegah akses langsung tanpa login
+preventDirectAccess();
 
 // Jika tidak ada session login → paksa login
 if (!isset($_SESSION['user_id'])) {
@@ -10,7 +17,9 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Koneksi database (diperlukan untuk verifikasi user)
+// =======================================================
+// KONEKSI DATABASE
+// =======================================================
 require_once __DIR__ . '/../config/database.php';
 $database = new Database();
 $db = $database->getConnection();
@@ -21,13 +30,15 @@ if (!$db) {
     exit();
 }
 
-// Ambil user dari database
-$query = "SELECT id, role, is_active FROM users WHERE id = ?";
+// =======================================================
+// AMBIL DATA USER LOGIN DAN CEK STATUS
+// =======================================================
+$query = "SELECT id, username, role, is_active, locked_until FROM users WHERE id = ?";
 $stmt = $db->prepare($query);
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Jika user tidak ditemukan atau dihapus oleh superadmin
+// Jika user tidak ditemukan atau dihapus
 if (!$user) {
     $_SESSION['error'] = "Akun telah dihapus. Silakan login kembali.";
     session_destroy();
@@ -35,7 +46,7 @@ if (!$user) {
     exit();
 }
 
-// Jika user di-nonaktifkan
+// Jika user dinonaktifkan
 if (!$user['is_active']) {
     $_SESSION['error'] = "Akun Anda dinonaktifkan.";
     session_destroy();
@@ -43,13 +54,19 @@ if (!$user['is_active']) {
     exit();
 }
 
+// Jika akun terkunci
+$lockout_result = checkAccountLockout($db, $user);
+if ($lockout_result !== false) {
+    $_SESSION['error'] = "Akun Anda terkunci. Silakan hubungi superadmin.";
+    session_destroy();
+    header("Location: login.php");
+    exit();
+}
+
 // =======================================================
-// CEK APAKAH ADA AKUN AKTIF MINIMAL SATU
+// FUNGSI CEK AKUN AKTIF TERAKHIR
 // =======================================================
 
-/**
- * Fungsi untuk cek apakah ini adalah akun aktif terakhir
- */
 function isLastActiveAccount($db, $user_id) {
     try {
         // Hitung jumlah akun aktif
@@ -57,33 +74,40 @@ function isLastActiveAccount($db, $user_id) {
         $stmt->execute();
         $active_count = $stmt->fetchColumn();
         
-        // Jika hanya ada 1 akun aktif, cek apakah ini akun tersebut
+        // Jika hanya ada 1 akun aktif, cek apakah user ini
         if ($active_count == 1) {
             $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE is_active = TRUE AND id = ?");
             $stmt->execute([$user_id]);
             return $stmt->fetchColumn() == 1;
         }
-        
+
         return false;
+
     } catch (Exception $e) {
         error_log("Error checking last active account: " . $e->getMessage());
         return false;
     }
 }
 
-// Simpan status ke session untuk digunakan di halaman lain
+// Simpan status ke session
 $_SESSION['is_last_active'] = isLastActiveAccount($db, $_SESSION['user_id']);
 
 // =======================================================
-// CEK AKSES HALAMAN BERDASARKAN ROLE
+// CEK AKSES BERDASARKAN ROLE & HALAMAN
 // =======================================================
 
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Daftar halaman yang hanya boleh diakses superadmin
-$superadmin_only_pages = ['clear_logs.php']; // Hanya Clear Logs yang khusus superadmin
+// Halaman khusus superadmin
+$superadmin_only_pages = [
+    'clear_logs.php',
+    'view_admin_activity.php',
+    'clear_user_activity.php',
+    'export_activity.php',
+    'print_activity.php'
+];
 
-// Cek jika halaman saat ini adalah halaman khusus superadmin
+// Jika halaman khusus superadmin, tapi role bukan superadmin → tolak
 if (in_array($current_page, $superadmin_only_pages) && $_SESSION['role'] !== 'superadmin') {
     $_SESSION['error_message'] = "Akses ditolak. Hanya superadmin yang dapat mengakses halaman ini.";
     header("Location: dashboard.php");

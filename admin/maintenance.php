@@ -5,8 +5,8 @@ require_once '../config/helpers.php';
 
 require_once 'check_auth.php';
 
-// Cek login dan role admin
-if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'superadmin') {
+// Cek login dan role admin - SEMUA ADMIN BISA AKSES
+if(!isset($_SESSION['user_id']) || ($_SESSION['role'] != 'admin' && $_SESSION['role'] != 'superadmin')) {
     header('Location: login.php');
     exit();
 }
@@ -1021,7 +1021,7 @@ $maintenanceCount = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
                                                         <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($log['username']); ?></h6>
                                                         <small class="text-muted d-flex align-items-center">
                                                             <i class="fas fa-user-circle me-2"></i>
-                                                            Super Administrator
+                                                            <?php echo strtoupper($log['role']); ?>
                                                         </small>
                                                     </div>
                                                 </div>

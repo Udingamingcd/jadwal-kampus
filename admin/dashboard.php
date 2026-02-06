@@ -217,11 +217,11 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </nav>
 
             <!-- Mobile Sidebar -->
-            <div class="collapse d-md-none mb-4" id="mobileSidebar">
+ <div class="collapse d-md-none mb-4" id="mobileSidebar">
                 <div class="card">
-                    <div class="card-body">
+                    <div class="card-body">  
                         <nav class="nav flex-column">
-                            <a class="nav-link active" href="dashboard.php">
+                            <a class="nav-link" href="dashboard.php">
                                 <i class="fas fa-tachometer-alt"></i> Dashboard
                             </a>
                             <a class="nav-link" href="manage_schedule.php">
@@ -233,11 +233,21 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <a class="nav-link" href="manage_semester.php">
                                 <i class="fas fa-calendar-alt"></i> Kelola Semester
                             </a>
-                            <a class="nav-link" href="manage_settings.php">
+                            <a class="nav-link active" href="manage_settings.php">
                                 <i class="fas fa-cog"></i> Pengaturan
                             </a>
                             <a class="nav-link" href="manage_users.php">
                                 <i class="fas fa-users"></i> Kelola Admin
+                            </a>
+                            <a class="nav-link" href="reports.php">
+                                <i class="fas fa-chart-bar"></i> Laporan
+                            </a>
+                            <hr>
+                            <a class="nav-link" href="profile.php">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a class="nav-link" href="logout.php">
+                                <i class="fas fa-sign-out-alt"></i> Logout
                             </a>
                         </nav>
                     </div>

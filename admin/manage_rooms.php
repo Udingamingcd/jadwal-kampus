@@ -242,7 +242,7 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kelola Ruangan - Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -293,29 +293,7 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
             color: white;
             font-weight: bold;
         }
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: relative;
-                min-height: auto;
-                display: none;
-            }
-            .sidebar.mobile-show {
-                display: block;
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .mobile-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 999;
-            }
-        }
+        
         .content-wrapper {
             padding-top: 20px;
         }
@@ -386,19 +364,390 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
             font-size: 0.8em;
             margin: 2px;
         }
+        
+        /* ========== PERBAIKAN UTAMA UNTUK MOBILE ========== */
+        
+        /* Tablet dan Mobile */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 100%;
+                position: fixed;
+                min-height: 100vh;
+                display: none;
+                z-index: 1050;
+                top: 0;
+                left: 0;
+            }
+            .sidebar.mobile-show {
+                display: block;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 10px;
+                width: 100%;
+                overflow-x: hidden;
+            }
+            .mobile-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 1040;
+                display: none;
+            }
+            .mobile-overlay.show {
+                display: block;
+            }
+            
+            /* Perbaikan navbar untuk mobile */
+            .navbar-custom {
+                position: sticky;
+                top: 0;
+                z-index: 1030;
+                padding: 10px 0;
+            }
+            
+            /* Perbaikan page header untuk mobile */
+            .page-header {
+                padding: 15px;
+                margin: 0 -10px 15px -10px;
+                width: calc(100% + 20px);
+                border-radius: 0;
+                overflow: hidden;
+            }
+            
+            .page-header .d-flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .page-header .btn {
+                margin-top: 10px;
+                width: 100%;
+            }
+            
+            /* Perbaikan container tabel untuk mobile */
+            .table-container {
+                padding: 10px;
+                margin: 0 -10px;
+                width: calc(100% + 20px);
+                border-radius: 0;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Perbaikan grid statistics untuk mobile */
+            .room-stat {
+                margin-bottom: 10px;
+                padding: 12px;
+            }
+            
+            .room-stat i {
+                font-size: 1.5rem;
+                margin-bottom: 5px;
+            }
+            
+            .room-stat .number {
+                font-size: 1.2rem;
+            }
+            
+            /* Perbaikan tabel untuk mobile - TEKS TIDAK TERPOTONG */
+            .table-responsive {
+                width: 100% !important;
+                min-width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            #roomsTable {
+                width: 100% !important;
+                min-width: 600px !important; /* Minimum width untuk memastikan konten tidak hancur */
+                table-layout: auto;
+            }
+            
+            /* Atur kolom dengan lebar yang sesuai */
+            #roomsTable th,
+            #roomsTable td {
+                padding: 8px 6px !important;
+                font-size: 0.85rem;
+                min-width: 60px !important;
+                max-width: 200px !important;
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            /* Kolom Nama Ruangan - lebih lebar untuk teks panjang */
+            #roomsTable th:nth-child(2),
+            #roomsTable td:nth-child(2) {
+                min-width: 140px !important;
+                max-width: 200px !important;
+                white-space: normal;
+            }
+            
+            /* Kolom Foto - ukuran tetap */
+            #roomsTable th:nth-child(3),
+            #roomsTable td:nth-child(3) {
+                min-width: 100px !important;
+                max-width: 120px !important;
+                text-align: center;
+            }
+            
+            /* Kolom Kapasitas - ukuran kecil */
+            #roomsTable th:nth-child(5),
+            #roomsTable td:nth-child(5) {
+                min-width: 80px !important;
+                max-width: 100px !important;
+                text-align: center;
+            }
+            
+            /* Kolom Aksi - ukuran tetap */
+            #roomsTable th:last-child,
+            #roomsTable td:last-child {
+                min-width: 100px !important;
+                max-width: 100px !important;
+                text-align: center;
+            }
+            
+            /* Kolom yang disembunyikan di mobile */
+            #roomsTable th:nth-child(1),
+            #roomsTable td:nth-child(1),
+            #roomsTable th:nth-child(4),
+            #roomsTable td:nth-child(4),
+            #roomsTable th:nth-child(6),
+            #roomsTable td:nth-child(6),
+            #roomsTable th:nth-child(7),
+            #roomsTable td:nth-child(7) {
+                display: none;
+            }
+            
+            /* Foto lebih kecil di mobile */
+            .foto-preview {
+                max-width: 70px;
+                max-height: 70px;
+            }
+            
+            /* Tombol lebih kecil di mobile */
+            .btn {
+                padding: 5px 8px;
+                font-size: 0.8rem;
+            }
+            
+            /* Pastikan tidak ada horizontal scroll di body */
+            body {
+                overflow-x: hidden;
+                max-width: 100vw;
+                width: 100%;
+            }
+            
+            /* Modal di mobile */
+            .modal-dialog {
+                margin: 10px !important;
+                max-width: calc(100% - 20px) !important;
+            }
+            
+            .modal-content {
+                border-radius: 10px;
+            }
+        }
+        
+        /* Perangkat sangat kecil (smartphone kecil) */
+        @media (max-width: 576px) {
+            .room-stat {
+                margin-bottom: 8px;
+            }
+            
+            #roomsTable {
+                min-width: 500px !important;
+            }
+            
+            #roomsTable th:nth-child(2),
+            #roomsTable td:nth-child(2) {
+                min-width: 120px !important;
+            }
+            
+            .upload-container {
+                padding: 15px;
+            }
+            
+            /* Modal form layout untuk mobile */
+            .modal-body .row {
+                margin: 0;
+            }
+            
+            .modal-body .col-md-6 {
+                padding: 0;
+                width: 100%;
+            }
+        }
+        
+        /* Perbaikan khusus untuk layar sangat kecil */
+        @media (max-width: 375px) {
+            .page-header h5 {
+                font-size: 1rem;
+            }
+            
+            #roomsTable {
+                min-width: 450px !important;
+            }
+            
+            .foto-preview {
+                max-width: 60px;
+                max-height: 60px;
+            }
+            
+            .btn-sm {
+                padding: 3px 5px;
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* ========== PERBAIKAN TAMBAHAN ========== */
+        
+        /* Pastikan konten tidak keluar dari layar */
+        .container-fluid {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        /* Fix untuk modals */
+        .modal {
+            padding-right: 0 !important;
+        }
+        
+        .modal.show .modal-dialog {
+            transform: none;
+        }
+        
+        /* Improved mobile menu */
+        .navbar-toggler {
+            border: none;
+            padding: 5px;
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: none;
+        }
+        
+        /* Mobile sidebar fixes */
+        #mobileSidebar {
+            z-index: 1050;
+            position: relative;
+        }
+        
+        /* Modal fixes for mobile */
+        .modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+        
+        .modal-backdrop {
+            z-index: 1040;
+        }
+        
+        .modal {
+            z-index: 1050;
+            padding-right: 0 !important;
+        }
+        
+        /* Ensure text doesn't overflow in table cells */
+        .table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        /* Styling untuk info mobile */
+        .mobile-info {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* Wrapper untuk tabel responsive */
+        .table-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Scroll indicator untuk tabel di mobile */
+        .scroll-indicator {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 20px;
+            background: linear-gradient(to right, transparent, rgba(0,0,0,0.1));
+            pointer-events: none;
+            display: none;
+        }
+        
+        @media (max-width: 992px) {
+            .scroll-indicator {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="d-flex">
-        <!-- Sidebar -->
-        <?php include 'templates/sidebar.php'; ?>
+        <!-- Sidebar (Desktop) -->
+        <div class="sidebar d-none d-md-block">
+            <div class="p-4">
+                <h3 class="mb-4"><i class="fas fa-calendar-alt"></i> Admin Panel</h3>
+                <div class="user-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <div class="user-avatar me-3">
+                            <?php echo strtoupper(substr($_SESSION['username'], 0, 1)); ?>
+                        </div>
+                        <div>
+                            <h6 class="mb-0"><?php echo htmlspecialchars($_SESSION['username']); ?></h6>
+                            <small class="text-muted"><?php echo ucfirst($_SESSION['role']); ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav flex-column">
+                <a class="nav-link" href="dashboard.php">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link" href="manage_schedule.php">
+                    <i class="fas fa-calendar"></i> Kelola Jadwal
+                </a>
+                <a class="nav-link active" href="manage_rooms.php">
+                    <i class="fas fa-door-open"></i> Kelola Ruangan
+                </a>
+                <a class="nav-link" href="manage_semester.php">
+                    <i class="fas fa-calendar-alt"></i> Kelola Semester
+                </a>
+                <a class="nav-link" href="manage_settings.php">
+                    <i class="fas fa-cog"></i> Pengaturan
+                </a>
+                <a class="nav-link" href="manage_users.php">
+                    <i class="fas fa-users"></i> Kelola Admin
+                </a>
+                <a class="nav-link" href="reports.php">
+                    <i class="fas fa-chart-bar"></i> Laporan
+                </a>
+                <div class="mt-4"></div>
+                <a class="nav-link" href="profile.php">
+                    <i class="fas fa-user"></i> Profile
+                </a>
+                <a class="nav-link" href="logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </nav>
+        </div>
 
         <!-- Main Content -->
         <div class="main-content flex-grow-1">
             <!-- Navbar -->
             <nav class="navbar navbar-expand-lg navbar-custom mb-4">
                 <div class="container-fluid">
-                    <button class="navbar-toggler d-md-none" type="button" onclick="toggleMobileSidebar()">
+                    <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#mobileSidebar">
                         <i class="fas fa-bars"></i>
                     </button>
                     <div class="d-flex align-items-center">
@@ -425,6 +774,44 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </nav>
 
+            <!-- Mobile Sidebar -->
+            <div class="collapse d-md-none mb-4" id="mobileSidebar">
+                <div class="card">
+                    <div class="card-body">
+                        <nav class="nav flex-column">
+                            <a class="nav-link" href="dashboard.php">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a class="nav-link" href="manage_schedule.php">
+                                <i class="fas fa-calendar"></i> Kelola Jadwal
+                            </a>
+                            <a class="nav-link" href="manage_rooms.php">
+                                <i class="fas fa-door-open"></i> Kelola Ruangan
+                            </a>
+                            <a class="nav-link" href="manage_semester.php">
+                                <i class="fas fa-calendar-alt"></i> Kelola Semester
+                            </a>
+                            <a class="nav-link active" href="manage_settings.php">
+                                <i class="fas fa-cog"></i> Pengaturan
+                            </a>
+                            <a class="nav-link" href="manage_users.php">
+                                <i class="fas fa-users"></i> Kelola Admin
+                            </a>
+                            <a class="nav-link" href="reports.php">
+                                <i class="fas fa-chart-bar"></i> Laporan
+                            </a>
+                            <hr>
+                            <a class="nav-link" href="profile.php">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a class="nav-link" href="logout.php">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
             <!-- Content -->
             <div class="content-wrapper">
                 <!-- Page Header -->
@@ -441,15 +828,15 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <!-- Statistics -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
+                <div class="row mb-4 g-2">
+                    <div class="col-6 col-lg-3">
                         <div class="room-stat">
                             <i class="fas fa-door-open"></i>
                             <div class="number"><?php echo count($rooms); ?></div>
                             <div class="label">Total Ruangan</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-6 col-lg-3">
                         <div class="room-stat" style="background: linear-gradient(135deg, #4CAF50, #2E7D32);">
                             <i class="fas fa-camera"></i>
                             <div class="number">
@@ -464,7 +851,7 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <div class="label">Dengan Foto</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-6 col-lg-3">
                         <div class="room-stat" style="background: linear-gradient(135deg, #FF9800, #EF6C00);">
                             <i class="fas fa-users"></i>
                             <div class="number">
@@ -479,12 +866,11 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <div class="label">Total Kapasitas</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-6 col-lg-3">
                         <div class="room-stat" style="background: linear-gradient(135deg, #9C27B0, #6A1B9A);">
                             <i class="fas fa-calendar-check"></i>
                             <div class="number">
                                 <?php 
-                                // Hitung ruangan yang digunakan di jadwal
                                 $used_rooms = [];
                                 $query_used = "SELECT DISTINCT ruang FROM schedules";
                                 $stmt_used = $db->prepare($query_used);
@@ -502,81 +888,106 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 <!-- Data Table -->
                 <div class="table-container">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="roomsTable">
-                            <thead>
-                                <tr>
-                                    <th>No</th>
-                                    <th>Nama Ruangan</th>
-                                    <th>Foto</th>
-                                    <th>Deskripsi</th>
-                                    <th>Kapasitas</th>
-                                    <th>Fasilitas</th>
-                                    <th>Tanggal Dibuat</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php $no = 1; ?>
-                                <?php foreach($rooms as $room): ?>
-                                <tr>
-                                    <td><?php echo $no++; ?></td>
-                                    <td>
-                                        <strong><?php echo htmlspecialchars($room['nama_ruang']); ?></strong>
-                                    </td>
-                                    <td>
-                                        <?php if($room['foto_path']): ?>
-                                            <img src="../uploads/rooms/<?php echo htmlspecialchars($room['foto_path']); ?>" 
-                                                 class="foto-preview" 
-                                                 alt="Foto <?php echo htmlspecialchars($room['nama_ruang']); ?>"
-                                                 onclick="viewPhoto(this.src, '<?php echo htmlspecialchars($room['nama_ruang']); ?>')"
-                                                 style="cursor: pointer;">
-                                            <br>
-                                            <a href="?delete_foto=<?php echo $room['id']; ?>" 
-                                               class="btn btn-sm btn-danger mt-1"
-                                               onclick="return confirm('Yakin hapus foto ini?')">
-                                                <i class="fas fa-trash"></i> Hapus Foto
-                                            </a>
-                                        <?php else: ?>
-                                            <span class="text-muted">Tidak ada foto</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($room['deskripsi']); ?></td>
-                                    <td>
-                                        <?php if($room['kapasitas'] > 0): ?>
-                                            <span class="badge bg-info"><?php echo $room['kapasitas']; ?> orang</span>
-                                        <?php else: ?>
-                                            <span class="text-muted">-</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php 
-                                        if (!empty($room['fasilitas'])) {
-                                            $fasilitas = explode(',', $room['fasilitas']);
-                                            foreach ($fasilitas as $fas) {
-                                                $fas = trim($fas);
-                                                if (!empty($fas)) {
-                                                    echo '<span class="badge bg-secondary fasilitas-badge">' . htmlspecialchars($fas) . '</span> ';
+                    <div class="table-wrapper">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="roomsTable">
+                                <thead>
+                                    <tr>
+                                        <th class="d-none d-lg-table-cell">No</th>
+                                        <th>Nama Ruangan</th>
+                                        <th>Foto</th>
+                                        <th class="d-none d-lg-table-cell">Deskripsi</th>
+                                        <th>Kapasitas</th>
+                                        <th class="d-none d-lg-table-cell">Fasilitas</th>
+                                        <th class="d-none d-lg-table-cell">Tanggal Dibuat</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $no = 1; ?>
+                                    <?php foreach($rooms as $room): ?>
+                                    <tr>
+                                        <td class="d-none d-lg-table-cell"><?php echo $no++; ?></td>
+                                        <td>
+                                            <strong><?php echo htmlspecialchars($room['nama_ruang']); ?></strong>
+                                            <div class="d-lg-none mobile-info">
+                                                <small>
+                                                    <i class="fas fa-calendar me-1"></i><?php echo date('d/m/Y', strtotime($room['created_at'])); ?>
+                                                    <?php if(!empty($room['deskripsi'])): ?>
+                                                        <br><i class="fas fa-info-circle me-1"></i><?php echo htmlspecialchars(substr($room['deskripsi'], 0, 40)) . (strlen($room['deskripsi']) > 40 ? '...' : ''); ?>
+                                                    <?php endif; ?>
+                                                    <?php if(!empty($room['fasilitas'])): ?>
+                                                        <?php 
+                                                        $fasilitas = explode(',', $room['fasilitas']);
+                                                        if(count($fasilitas) > 0): ?>
+                                                            <br><i class="fas fa-tools me-1"></i><?php echo htmlspecialchars(trim($fasilitas[0])); ?>
+                                                            <?php if(count($fasilitas) > 1): ?>
+                                                                <span class="badge bg-secondary">+<?php echo count($fasilitas)-1; ?></span>
+                                                            <?php endif; ?>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <?php if($room['foto_path']): ?>
+                                                <img src="../uploads/rooms/<?php echo htmlspecialchars($room['foto_path']); ?>" 
+                                                     class="foto-preview" 
+                                                     alt="Foto <?php echo htmlspecialchars($room['nama_ruang']); ?>"
+                                                     onclick="viewPhoto(this.src, '<?php echo htmlspecialchars($room['nama_ruang']); ?>')"
+                                                     style="cursor: pointer;">
+                                                <br>
+                                                <a href="?delete_foto=<?php echo $room['id']; ?>" 
+                                                   class="btn btn-sm btn-danger mt-1"
+                                                   onclick="return confirm('Yakin hapus foto ini?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars($room['deskripsi']); ?></td>
+                                        <td style="text-align: center;">
+                                            <?php if($room['kapasitas'] > 0): ?>
+                                                <span class="badge bg-info"><?php echo $room['kapasitas']; ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="d-none d-lg-table-cell">
+                                            <?php 
+                                            if (!empty($room['fasilitas'])) {
+                                                $fasilitas = explode(',', $room['fasilitas']);
+                                                $display_fasilitas = array_slice($fasilitas, 0, 3);
+                                                foreach ($display_fasilitas as $fas) {
+                                                    $fas = trim($fas);
+                                                    if (!empty($fas)) {
+                                                        echo '<span class="badge bg-secondary fasilitas-badge">' . htmlspecialchars($fas) . '</span> ';
+                                                    }
                                                 }
+                                                if (count($fasilitas) > 3) {
+                                                    echo '<span class="badge bg-light text-dark fasilitas-badge">+' . (count($fasilitas) - 3) . '</span>';
+                                                }
+                                            } else {
+                                                echo '<span class="text-muted">-</span>';
                                             }
-                                        } else {
-                                            echo '<span class="text-muted">-</span>';
-                                        }
-                                        ?>
-                                    </td>
-                                    <td><?php echo date('d/m/Y', strtotime($room['created_at'])); ?></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-warning" onclick="editRoom(<?php echo htmlspecialchars(json_encode($room), ENT_QUOTES, 'UTF-8'); ?>)">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <a href="?delete=<?php echo $room['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus ruangan ini?')">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                            ?>
+                                        </td>
+                                        <td class="d-none d-lg-table-cell"><?php echo date('d/m/Y', strtotime($room['created_at'])); ?></td>
+                                        <td style="text-align: center;">
+                                            <button class="btn btn-sm btn-warning mb-1" onclick="editRoom(<?php echo htmlspecialchars(json_encode($room), ENT_QUOTES, 'UTF-8'); ?>)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <a href="?delete=<?php echo $room['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus ruangan ini?')">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="scroll-indicator"></div>
                     </div>
                 </div>
             </div>
@@ -717,15 +1128,67 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function() {
+            // Initialize DataTables
             $('#roomsTable').DataTable({
                 "language": {
                     "url": "//cdn.datatables.net/plug-ins/1.13.1/i18n/id.json"
                 },
-                "pageLength": 10
+                "pageLength": 10,
+                "responsive": false, // Nonaktifkan responsive DataTables karena kita custom
+                "autoWidth": false,
+                "scrollX": false
             });
+            
+            // Fungsi untuk menyesuaikan tampilan tabel
+            function adjustTableForMobile() {
+                const isMobile = window.innerWidth <= 992;
+                const table = document.getElementById('roomsTable');
+                const tableContainer = document.querySelector('.table-responsive');
+                
+                if (isMobile) {
+                    // Pastikan tabel memiliki width yang cukup
+                    if (table) {
+                        table.style.minWidth = '600px';
+                    }
+                    
+                    // Aktifkan scroll horizontal
+                    if (tableContainer) {
+                        tableContainer.style.overflowX = 'auto';
+                        tableContainer.style.webkitOverflowScrolling = 'touch';
+                    }
+                } else {
+                    // Reset untuk desktop
+                    if (table) {
+                        table.style.minWidth = '';
+                    }
+                    if (tableContainer) {
+                        tableContainer.style.overflowX = '';
+                    }
+                }
+            }
+            
+            // Panggil saat load dan resize
+            adjustTableForMobile();
+            window.addEventListener('resize', adjustTableForMobile);
+            
+            // Handle modal untuk mobile
+            $(document).on('show.bs.modal', '.modal', function () {
+                if ($(window).width() <= 992) {
+                    $('body').addClass('modal-open');
+                }
+            });
+            
+            $(document).on('hidden.bs.modal', '.modal', function () {
+                if ($(window).width() <= 992) {
+                    $('body').removeClass('modal-open');
+                }
+            });
+            
+            // Inisialisasi tooltips
+            $('[data-bs-toggle="tooltip"]').tooltip();
         });
         
         function editRoom(room) {
@@ -735,7 +1198,6 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $('#edit_kapasitas').val(room.kapasitas || '');
             $('#edit_fasilitas').val(room.fasilitas || '');
             
-            // Show current photo
             const currentFotoDiv = document.getElementById('currentFoto');
             if (room.foto_path) {
                 currentFotoDiv.innerHTML = `
@@ -750,7 +1212,6 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 currentFotoDiv.innerHTML = '<p class="text-muted mb-1">Tidak ada foto</p>';
             }
             
-            // Clear preview
             document.getElementById('editFotoPreview').innerHTML = '';
             
             $('#editModal').modal('show');
@@ -763,14 +1224,12 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 
-                // Validasi ukuran file
                 if (file.size > 2 * 1024 * 1024) {
                     alert('Ukuran file maksimal 2MB');
                     input.value = '';
                     return;
                 }
                 
-                // Validasi tipe file
                 const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
                 if (!allowedTypes.includes(file.type)) {
                     alert('Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP.');
@@ -791,34 +1250,6 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
         }
         
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-            
-            if (sidebar.classList.contains('mobile-show')) {
-                sidebar.classList.remove('mobile-show');
-                if (overlay) overlay.remove();
-            } else {
-                sidebar.classList.add('mobile-show');
-                // Tambah overlay
-                if (!overlay) {
-                    const overlayDiv = document.createElement('div');
-                    overlayDiv.className = 'mobile-overlay';
-                    overlayDiv.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.5);
-                        z-index: 999;
-                    `;
-                    overlayDiv.onclick = toggleMobileSidebar;
-                    document.body.appendChild(overlayDiv);
-                }
-            }
-        }
-        
         function viewPhoto(src, title) {
             document.getElementById('viewPhotoImg').src = src;
             document.getElementById('photoTitle').textContent = 'Foto: ' + title;
@@ -826,7 +1257,7 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
             modal.show();
         }
         
-        // Validate room form before submit
+        // Form validation
         document.querySelector('#addModal form').addEventListener('submit', function(e) {
             const nama_ruang = document.querySelector('#addModal input[name="nama_ruang"]').value.trim();
             if (!nama_ruang) {
@@ -845,6 +1276,35 @@ $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 return false;
             }
             return true;
+        });
+        
+        // Fungsi untuk menunjukkan bahwa tabel bisa di-scroll horizontal di mobile
+        function showScrollIndicator() {
+            if (window.innerWidth <= 992) {
+                const tableContainer = document.querySelector('.table-responsive');
+                if (tableContainer) {
+                    const hasHorizontalScroll = tableContainer.scrollWidth > tableContainer.clientWidth;
+                    const scrollIndicator = document.querySelector('.scroll-indicator');
+                    if (scrollIndicator) {
+                        scrollIndicator.style.display = hasHorizontalScroll ? 'block' : 'none';
+                    }
+                }
+            }
+        }
+        
+        // Panggil fungsi showScrollIndicator
+        setTimeout(showScrollIndicator, 100);
+        window.addEventListener('resize', showScrollIndicator);
+        
+        // Tambahkan event listener untuk scroll pada tabel
+        document.querySelector('.table-responsive')?.addEventListener('scroll', function() {
+            const scrollIndicator = document.querySelector('.scroll-indicator');
+            if (scrollIndicator) {
+                const scrollLeft = this.scrollLeft;
+                const maxScroll = this.scrollWidth - this.clientWidth;
+                const opacity = 1 - (scrollLeft / maxScroll);
+                scrollIndicator.style.opacity = opacity;
+            }
         });
     </script>
 </body>

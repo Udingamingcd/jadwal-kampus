@@ -57,7 +57,9 @@ $tampil_semua_kelas = isset($_GET['semua_kelas']) && $_GET['semua_kelas'] == '1'
 $hari_sekarang = date('N'); // 1=Senin, 7=Minggu
 if ($hari_sekarang >= 6) { // 6=Sabtu, 7=Minggu
     $hari_sekarang = 1; // Default ke Senin
-    $hari_selected = $hari_selected ?? 1; // Jika tidak ada pilihan, set ke Senin
+    if (!isset($_GET['hari'])) {
+        $hari_selected = 1; // Jika tidak ada pilihan, set ke Senin
+    }
 }
 
 // Pastikan kelas_selected valid
@@ -130,7 +132,9 @@ if ($tampil_semua_hari && !empty($jadwal)) {
     }
 }
 
-// LOGIKA UNTUK MENDAPATKAN JADWAL BERLANGSUNG DAN BERIKUTNYA DENGAN FILTER
+// ========================================================
+// PERUBAHAN PENTING: LOGIKA JADWAL BERIKUTNYA
+// ========================================================
 $jam_sekarang = date('H:i');
 $hari_sekarang = date('N'); // 1=Senin, 5=Jumat
 $hari_sekarang_teks = $hari_map[$hari_sekarang] ?? null;
@@ -141,13 +145,15 @@ $waktu_tunggu_detik = 0;
 $selisih_hari = 0;
 $target_hari = '';
 
-// Jika menampilkan semua hari, cari di hari ini saja
-$hari_filter = $tampil_semua_hari ? $hari_sekarang_teks : $hari_teks;
+// PERUBAHAN 1: UNTUK JADWAL BERIKUTNYA, SELALU GUNAKAN HARI SAAT INI
+// Tidak peduli filter hari yang dipilih, jadwal berikutnya selalu dicari dari hari ini
+$hari_filter_berikutnya = $hari_sekarang_teks;
 
 // Jika menampilkan semua kelas, set kelas_filter ke null
 $kelas_filter = $tampil_semua_kelas ? null : $kelas_selected;
 
-if ($hari_filter) {
+// LOGIKA JADWAL BERLANGSUNG (tetap seperti sebelumnya)
+if ($hari_filter_berikutnya) {
     try {
         // Query dasar untuk mencari jadwal
         $query_base = "SELECT * FROM schedules 
@@ -156,7 +162,7 @@ if ($hari_filter) {
                       AND semester = ? ";
         
         // Tambahkan filter kelas jika tidak null
-        $params = [$hari_filter, $tahun_akademik, $semester_aktif];
+        $params = [$hari_filter_berikutnya, $tahun_akademik, $semester_aktif];
         if ($kelas_filter) {
             $query_base .= " AND kelas = ? ";
             $params[] = $kelas_filter;
@@ -174,78 +180,91 @@ if ($hari_filter) {
         $stmt_berlangsung->execute($params_berlangsung);
         $jadwal_berlangsung = $stmt_berlangsung->fetch(PDO::FETCH_ASSOC);
         
-        // 2. Cari jadwal berikutnya (hari ini/filter hari dulu)
-        $query_selanjutnya = $query_base . " AND SUBSTRING_INDEX(waktu, ' - ', 1) > ?
-                      ORDER BY SUBSTRING_INDEX(waktu, ' - ', 1)
-                      LIMIT 1";
+        // PERUBAHAN 2: JADWAL BERIKUTNYA DICARI HANYA BERDASARKAN KELAS
+        // Mulai pencarian dari hari ini, lalu hari-hari berikutnya
+        $hari_order = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
+        $current_index = array_search($hari_filter_berikutnya, $hari_order);
         
-        $params_selanjutnya = array_merge($params, [$jam_sekarang]);
-        $stmt_selanjutnya = $db->prepare($query_selanjutnya);
-        $stmt_selanjutnya->execute($params_selanjutnya);
-        $jadwal_selanjutnya = $stmt_selanjutnya->fetch(PDO::FETCH_ASSOC);
-        
-        if ($jadwal_selanjutnya) {
-            $jadwal_berikutnya = $jadwal_selanjutnya;
-            $target_hari = $hari_filter;
-            $selisih_hari = 0;
+        // Loop maksimal 5 hari (Senin-Jumat)
+        for ($i = 0; $i < 5; $i++) {
+            $next_index = ($current_index + $i) % 5;
+            $next_day = $hari_order[$next_index];
             
-            // Hitung waktu tunggu
-            if (strpos($jadwal_selanjutnya['waktu'], ' - ') !== false) {
-                list($waktu_mulai, $waktu_selesai) = explode(' - ', $jadwal_selanjutnya['waktu']);
-                list($jam_mulai, $menit_mulai) = explode(':', $waktu_mulai);
-                list($jam_sekarang_int, $menit_sekarang_int) = explode(':', $jam_sekarang);
-                
-                $waktu_target = mktime($jam_mulai, $menit_mulai, 0, date('m'), date('d'), date('Y'));
-                $waktu_sekarang = mktime($jam_sekarang_int, $menit_sekarang_int, 0, date('m'), date('d'), date('Y'));
-                $waktu_tunggu_detik = $waktu_target - $waktu_sekarang;
+            $query_next_day = "SELECT * FROM schedules 
+                      WHERE hari = ? 
+                      AND tahun_akademik = ? 
+                      AND semester = ? ";
+            
+            $params_next_day = [$next_day, $tahun_akademik, $semester_aktif];
+            
+            // Filter kelas hanya jika kelas tertentu dipilih
+            if ($kelas_filter) {
+                $query_next_day .= " AND kelas = ? ";
+                $params_next_day[] = $kelas_filter;
             }
-        } else {
-            // 3. Jika tidak ada jadwal di hari filter, cari di hari berikutnya
-            // Hanya jika filter bukan "semua hari"
-            if (!$tampil_semua_hari) {
-                $hari_order = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
-                $current_index = array_search($hari_filter, $hari_order);
+            
+            // Jika ini hari yang sama dengan hari ini, cari yang waktu mulai > jam sekarang
+            if ($i == 0) {
+                $query_next_day .= " AND SUBSTRING_INDEX(waktu, ' - ', 1) > ?
+                          ORDER BY SUBSTRING_INDEX(waktu, ' - ', 1)
+                          LIMIT 1";
+                $params_next_day[] = $jam_sekarang;
+            } else {
+                // Jika hari berbeda, ambil jadwal pertama di hari tersebut
+                $query_next_day .= " ORDER BY SUBSTRING_INDEX(waktu, ' - ', 1)
+                          LIMIT 1";
+            }
+            
+            $stmt_next_day = $db->prepare($query_next_day);
+            $stmt_next_day->execute($params_next_day);
+            $jadwal_next_day = $stmt_next_day->fetch(PDO::FETCH_ASSOC);
+            
+            if ($jadwal_next_day) {
+                $jadwal_berikutnya = $jadwal_next_day;
+                $target_hari = $next_day;
+                $selisih_hari = $i;
                 
-                for ($i = 1; $i <= 4; $i++) {
-                    $next_index = ($current_index + $i) % 5;
-                    $next_day = $hari_order[$next_index];
-                    
-                    $query_next_day = "SELECT * FROM schedules 
-                              WHERE hari = ? 
-                              AND tahun_akademik = ? 
-                              AND semester = ? ";
-                    
-                    $params_next_day = [$next_day, $tahun_akademik, $semester_aktif];
-                    if ($kelas_filter) {
-                        $query_next_day .= " AND kelas = ? ";
-                        $params_next_day[] = $kelas_filter;
-                    }
-                    
-                    $query_next_day .= " ORDER BY SUBSTRING_INDEX(waktu, ' - ', 1)
-                              LIMIT 1";
-                    
-                    $stmt_next_day = $db->prepare($query_next_day);
-                    $stmt_next_day->execute($params_next_day);
-                    $jadwal_next_day = $stmt_next_day->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($jadwal_next_day) {
-                        $jadwal_berikutnya = $jadwal_next_day;
-                        $target_hari = $next_day;
-                        $selisih_hari = $i;
+                // Hitung waktu tunggu
+                if (strpos($jadwal_next_day['waktu'], ' - ') !== false) {
+                    $waktu_parts = explode(' - ', $jadwal_next_day['waktu']);
+                    if (count($waktu_parts) >= 2) {
+                        $waktu_mulai = $waktu_parts[0];
                         
-                        // Hitung waktu tunggu
-                        if (strpos($jadwal_next_day['waktu'], ' - ') !== false) {
-                            list($waktu_mulai, $waktu_selesai) = explode(' - ', $jadwal_next_day['waktu']);
-                            list($jam_mulai, $menit_mulai) = explode(':', $waktu_mulai);
-                            list($jam_sekarang_int, $menit_sekarang_int) = explode(':', $jam_sekarang);
-                            
-                            $waktu_target = mktime($jam_mulai, $menit_mulai, 0, date('m'), date('d') + $selisih_hari, date('Y'));
-                            $waktu_sekarang = mktime($jam_sekarang_int, $menit_sekarang_int, 0, date('m'), date('d'), date('Y'));
-                            $waktu_tunggu_detik = $waktu_target - $waktu_sekarang;
+                        // Parsing waktu_mulai dengan validasi
+                        $waktu_mulai_parts = explode(':', $waktu_mulai);
+                        if (count($waktu_mulai_parts) >= 2) {
+                            $jam_mulai = (int) $waktu_mulai_parts[0];
+                            $menit_mulai = (int) $waktu_mulai_parts[1];
+                        } else {
+                            $jam_mulai = 0;
+                            $menit_mulai = 0;
                         }
-                        break;
+                        
+                        // Waktu sekarang
+                        $jam_sekarang_clean = str_replace('.', ':', $jam_sekarang);
+                        $jam_sekarang_parts = explode(':', $jam_sekarang_clean);
+                        if (count($jam_sekarang_parts) >= 2) {
+                            $jam_sekarang_int = (int) $jam_sekarang_parts[0];
+                            $menit_sekarang_int = (int) $jam_sekarang_parts[1];
+                        } else {
+                            $jam_sekarang_int = (int) date('H');
+                            $menit_sekarang_int = (int) date('i');
+                        }
+                        
+                        // Hitung waktu target (hari ini + selisih hari)
+                        $waktu_target = mktime($jam_mulai, $menit_mulai, 0, 
+                                              date('m'), date('d') + $selisih_hari, date('Y'));
+                        $waktu_sekarang = mktime($jam_sekarang_int, $menit_sekarang_int, 0, 
+                                                date('m'), date('d'), date('Y'));
+                        $waktu_tunggu_detik = $waktu_target - $waktu_sekarang;
+                        
+                        // Pastikan waktu tunggu tidak negatif
+                        if ($waktu_tunggu_detik < 0) {
+                            $waktu_tunggu_detik = 0;
+                        }
                     }
                 }
+                break; // Keluar dari loop setelah menemukan jadwal berikutnya
             }
         }
         
@@ -298,6 +317,10 @@ try {
 } catch (Exception $e) {
     error_log("Error mengambil data ruangan: " . $e->getMessage());
 }
+
+// JavaScript variables untuk default values
+$currentDay = date('N');
+$firstClass = !empty($kelas_list) ? $kelas_list[0] : 'A1';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -305,6 +328,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jadwal Kuliah - <?php echo htmlspecialchars($institusi_nama); ?></title>
+    <link rel="icon" type="image/png" href="assets/images/si.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -430,9 +454,9 @@ try {
         }
         
         .filter-tab.active {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            border-color: var(--primary);
+            border-color: white;
             box-shadow: 0 8px 20px rgba(67, 97, 238, 0.3);
         }
         
@@ -587,7 +611,7 @@ try {
             margin-bottom: 20px;
         }
         
-        /* Countdown Timer Styles */
+        /* Countdown Timer Styles - DIPERBAIKI */
         .countdown-container {
             background: rgba(0, 0, 0, 0.2);
             border-radius: 15px;
@@ -819,6 +843,15 @@ try {
             border-left: 3px solid var(--primary);
         }
         
+        /* Filter info display */
+        .filter-info-display {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 3px solid var(--primary);
+        }
+        
         /* Highlight jadwal sesuai filter */
         .jadwal-card.filter-match {
             border-color: var(--primary);
@@ -991,6 +1024,17 @@ try {
         .info-card:hover .info-icon {
             transform: scale(1.1);
         }
+        
+        /* Animation for filter tabs */
+        @keyframes filterPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .filter-tab.active {
+            animation: filterPulse 0.5s ease;
+        }
     </style>
 </head>
 <body class="<?php echo $is_maintenance ? 'maintenance-active' : ''; ?>" data-ruangan='<?php echo json_encode($ruangan_map); ?>'>
@@ -1052,7 +1096,7 @@ try {
                     
                     <!-- Tombol Filter Mobile -->
                     <div class="text-center mt-3">
-                        <button class="btn btn-light btn-sm filter-toggle-btn" onclick="toggleSidebar()">
+                        <button class="btn btn-light btn-sm filter-toggle-btn">
                             <i class="fas fa-filter me-2"></i> Filter Jadwal
                         </button>
                     </div>
@@ -1088,7 +1132,7 @@ try {
             <h5 class="mb-0">
                 <i class="fas fa-filter me-2"></i> Filter Jadwal
             </h5>
-            <button class="btn btn-close" onclick="toggleSidebar()"></button>
+            <button class="btn btn-close btn-close-white"></button>
         </div>
         <div class="sidebar-body p-3">
             <!-- Filter Hari -->
@@ -1099,15 +1143,13 @@ try {
                 <div class="filter-tabs" id="filter-hari-mobile">
                     <?php foreach ($hari_map as $num => $hari): ?>
                     <label class="filter-tab <?php echo (!$tampil_semua_hari && $hari_selected == $num) ? 'active' : ''; ?>" 
-                           data-type="hari" data-value="<?php echo $num; ?>"
-                           onclick="handleFilterClick(this, 'hari-mobile')">
+                           data-type="hari" data-value="<?php echo $num; ?>">
                         <i class="fas fa-calendar-day"></i> <?php echo $hari; ?>
                     </label>
                     <?php endforeach; ?>
                     
                     <label class="filter-tab <?php echo $tampil_semua_hari ? 'active' : ''; ?>" 
-                           data-type="semua_hari" data-value="1"
-                           onclick="handleFilterClick(this, 'semua-hari-mobile')">
+                           data-type="semua_hari" data-value="1">
                         <i class="fas fa-calendar-week"></i> Semua Hari
                     </label>
                 </div>
@@ -1122,15 +1164,13 @@ try {
                 <div class="filter-tabs" id="filter-kelas-mobile">
                     <?php foreach ($kelas_list as $kelas): ?>
                     <label class="filter-tab <?php echo (!$tampil_semua_kelas && $kelas_selected == $kelas) ? 'active' : ''; ?>"
-                           data-type="kelas" data-value="<?php echo htmlspecialchars($kelas); ?>"
-                           onclick="handleFilterClick(this, 'kelas-mobile')">
+                           data-type="kelas" data-value="<?php echo htmlspecialchars($kelas); ?>">
                         <i class="fas fa-graduation-cap"></i> <?php echo htmlspecialchars($kelas); ?>
                     </label>
                     <?php endforeach; ?>
                     
                     <label class="filter-tab <?php echo $tampil_semua_kelas ? 'active' : ''; ?>"
-                           data-type="semua_kelas" data-value="1"
-                           onclick="handleFilterClick(this, 'semua-kelas-mobile')">
+                           data-type="semua_kelas" data-value="1">
                         <i class="fas fa-layer-group"></i> Semua Kelas
                     </label>
                 </div>
@@ -1152,7 +1192,7 @@ try {
             </div>
         </div>
     </div>
-    <div class="overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <div class="overlay" id="sidebarOverlay"></div>
 
     <!-- Filter Section (Desktop) -->
     <section class="filter-section d-none d-md-block">
@@ -1186,17 +1226,16 @@ try {
                     <div class="filter-tabs" id="filter-hari-desktop">
                         <?php foreach ($hari_map as $num => $hari): ?>
                         <label class="filter-tab <?php echo (!$tampil_semua_hari && $hari_selected == $num) ? 'active' : ''; ?>" 
-                               data-type="hari" data-value="<?php echo $num; ?>"
-                               onclick="handleFilterClick(this, 'hari-desktop')">
+                               data-type="hari" data-value="<?php echo $num; ?>">
                             <i class="fas fa-calendar-day"></i> <?php echo $hari; ?>
                         </label>
                         <?php endforeach; ?>
                         
                         <label class="filter-tab <?php echo $tampil_semua_hari ? 'active' : ''; ?>" 
-                               data-type="semua_hari" data-value="1"
-                               onclick="handleFilterClick(this, 'semua-hari-desktop')">
+                               data-type="semua_hari" data-value="1">
                             <i class="fas fa-calendar-week"></i> Semua Hari
                         </label>
+                    </div>
                 </div>
                 
                 <!-- Filter Kelas -->
@@ -1208,15 +1247,13 @@ try {
                     <div class="filter-tabs" id="filter-kelas-desktop">
                         <?php foreach ($kelas_list as $kelas): ?>
                         <label class="filter-tab <?php echo (!$tampil_semua_kelas && $kelas_selected == $kelas) ? 'active' : ''; ?>"
-                               data-type="kelas" data-value="<?php echo htmlspecialchars($kelas); ?>"
-                               onclick="handleFilterClick(this, 'kelas-desktop')">
+                               data-type="kelas" data-value="<?php echo htmlspecialchars($kelas); ?>">
                             <i class="fas fa-graduation-cap"></i> <?php echo htmlspecialchars($kelas); ?>
                         </label>
                         <?php endforeach; ?>
                         
                         <label class="filter-tab <?php echo $tampil_semua_kelas ? 'active' : ''; ?>"
-                               data-type="semua_kelas" data-value="1"
-                               onclick="handleFilterClick(this, 'semua-kelas-desktop')">
+                               data-type="semua_kelas" data-value="1">
                             <i class="fas fa-layer-group"></i> Semua Kelas
                         </label>
                     </div>
@@ -1243,12 +1280,15 @@ try {
                     <?php else: ?>
                         Jadwal <?php echo $hari_teks; ?>
                     <?php endif; ?>
+                    <small class="text-muted fs-6 ms-2">
+                        (Jadwal berikutnya berdasarkan kelas dan hari ini)
+                    </small>
                 </h4>
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn btn-sm btn-outline-secondary" onclick="toggleCurrentSchedule()">
                         <i class="fas fa-eye-slash me-1"></i> <span id="toggleText">Sembunyikan</span>
                     </button>
-                    <button class="btn btn-sm btn-outline-primary" onclick="refreshCurrentSchedule()">
+                    <button class="btn btn-sm btn-outline-primary btn-refresh">
                         <i class="fas fa-sync-alt"></i>
                     </button>
                 </div>
@@ -1343,10 +1383,16 @@ try {
                                         <div>
                                             <h5 class="mb-0">
                                                 <i class="fas fa-clock me-2"></i> Jadwal Berikutnya
+                                                <!-- PERUBAHAN: Tambahkan info bahwa ini berdasarkan hari saat ini -->
+                                                <span class="badge bg-info ms-2" data-bs-toggle="tooltip" 
+                                                      title="Jadwal berikutnya berdasarkan kelas dan hari saat ini">
+                                                    <i class="fas fa-calendar-day me-1"></i>
+                                                    Hari Ini: <?php echo $hari_sekarang_teks ?? 'Hari ini'; ?>
+                                                </span>
                                                 <?php if ($selisih_hari > 0): ?>
                                                     <span class="badge bg-warning text-dark ms-2">
                                                         <i class="fas fa-calendar-alt me-1"></i>
-                                                        <?php echo $target_hari; ?>
+                                                        <?php echo $target_hari; ?> (<?php echo $selisih_hari; ?> hari lagi)
                                                     </span>
                                                 <?php endif; ?>
                                             </h5>
@@ -1394,7 +1440,7 @@ try {
                                             </div>
                                             <?php endif; ?>
                                             
-                                            <!-- Countdown Timer -->
+                                            <!-- Countdown Timer - DIPERBAIKI -->
                                             <?php if ($waktu_tunggu_detik > 0): ?>
                                             <div class="countdown-container mt-3">
                                                 <div class="text-center mb-2">
@@ -1403,20 +1449,20 @@ try {
                                                         Mulai dalam:
                                                     </small>
                                                 </div>
-                                                <div class="countdown-timer text-center text-light">
-                                                    <span class="countdown-unit countdown-pulse">
+                                                <div class="countdown-timer text-center text-light" id="countdownTimer">
+                                                    <span class="countdown-unit">
                                                         <div id="countdownDays">0</div>
                                                         <div class="countdown-label">Hari</div>
                                                     </span>
-                                                    <span class="countdown-unit countdown-pulse">
+                                                    <span class="countdown-unit">
                                                         <div id="countdownHours">00</div>
                                                         <div class="countdown-label">Jam</div>
                                                     </span>
-                                                    <span class="countdown-unit countdown-pulse">
+                                                    <span class="countdown-unit">
                                                         <div id="countdownMinutes">00</div>
                                                         <div class="countdown-label">Menit</div>
                                                     </span>
-                                                    <span class="countdown-unit countdown-pulse">
+                                                    <span class="countdown-unit">
                                                         <div id="countdownSeconds">00</div>
                                                         <div class="countdown-label">Detik</div>
                                                     </span>
@@ -1467,8 +1513,25 @@ try {
                                         <span><i class="fas fa-users me-1 text-primary"></i> Kelas: 
                                             <?php echo $tampil_semua_kelas ? 'Semua Kelas' : htmlspecialchars($kelas_selected); ?>
                                         </span>
+                                        <!-- PERUBAHAN: Tambahkan info tentang jadwal berikutnya -->
+                                        <span class="text-info">
+                                            <i class="fas fa-clock me-1"></i> 
+                                            Jadwal berikutnya: Berdasarkan <strong>Kelas</strong> dan <strong>Hari Ini</strong>
+                                        </span>
                                         <span><i class="fas fa-clock me-1 text-primary"></i> Waktu: <?php echo date('H:i'); ?></span>
                                         <span><i class="fas fa-graduation-cap me-1 text-primary"></i> Semester: <?php echo htmlspecialchars($semester_aktif); ?></span>
+                                    </div>
+                                    <!-- Filter Info Display -->
+                                    <div class="filter-info-display mt-3">
+                                        <div class="alert alert-info p-2 mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <small>
+                                                <strong>Info:</strong> Jadwal "Berikutnya" selalu ditampilkan berdasarkan:
+                                                <br>1. <strong>Kelas yang dipilih</strong> (atau semua kelas)
+                                                <br>2. <strong>Hari saat ini</strong> (<?php echo $hari_sekarang_teks ?? 'Hari ini'; ?>)
+                                                <br>3. Jika tidak ada jadwal di hari ini, sistem akan mencari di hari berikutnya.
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1717,698 +1780,310 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
-        // ============================================
-        // FILTER MANAGEMENT SYSTEM
-        // ============================================
+        // JavaScript variables untuk default values
+        const currentDay = <?php echo date('N'); ?>;
+        const firstClass = <?php echo json_encode(!empty($kelas_list) ? $kelas_list[0] : 'A1'); ?>;
         
-        // State management untuk filter
-        let filterState = {
-            hari: <?php echo json_encode($hari_selected); ?>,
-            semua_hari: <?php echo $tampil_semua_hari ? 'true' : 'false'; ?>,
-            kelas: <?php echo json_encode($kelas_selected); ?>,
-            semua_kelas: <?php echo $tampil_semua_kelas ? 'true' : 'false'; ?>,
-            last_update: null
-        };
-
-        // Initialize filter state dari PHP
-        function initializeFilterState() {
-            // Update filter state berdasarkan URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            if (urlParams.has('semua_hari') && urlParams.get('semua_hari') === '1') {
-                filterState.semua_hari = true;
-                filterState.hari = null;
-            } else if (urlParams.has('hari')) {
-                filterState.hari = urlParams.get('hari');
-                filterState.semua_hari = false;
-            }
-            
-            if (urlParams.has('semua_kelas') && urlParams.get('semua_kelas') === '1') {
-                filterState.semua_kelas = true;
-                filterState.kelas = null;
-            } else if (urlParams.has('kelas')) {
-                filterState.kelas = urlParams.get('kelas');
-                filterState.semua_kelas = false;
-            }
-            
-            // Update UI berdasarkan state
-            updateFilterUI();
-        }
-
-        // Update UI filter berdasarkan state
-        function updateFilterUI() {
-            // Reset semua tab aktif
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Update filter hari
-            if (filterState.semua_hari) {
-                // Aktifkan "Semua Hari" di desktop dan mobile
-                document.querySelectorAll('.filter-tab[data-type="semua_hari"]').forEach(tab => {
-                    tab.classList.add('active');
-                });
-            } else if (filterState.hari) {
-                // Aktifkan tab hari yang sesuai
-                document.querySelectorAll(`.filter-tab[data-type="hari"][data-value="${filterState.hari}"]`).forEach(tab => {
-                    tab.classList.add('active');
-                });
-            }
-            
-            // Update filter kelas
-            if (filterState.semua_kelas) {
-                // Aktifkan "Semua Kelas" di desktop dan mobile
-                document.querySelectorAll('.filter-tab[data-type="semua_kelas"]').forEach(tab => {
-                    tab.classList.add('active');
-                });
-            } else if (filterState.kelas) {
-                // Aktifkan tab kelas yang sesuai
-                document.querySelectorAll(`.filter-tab[data-type="kelas"][data-value="${filterState.kelas}"]`).forEach(tab => {
-                    tab.classList.add('active');
-                });
-            }
-        }
-
-        // Fungsi utama untuk menangani klik filter
-        function handleFilterClick(element, filterType) {
-            event.preventDefault();
-            event.stopPropagation();
-            
-            // Ambil data dari element
-            const type = element.getAttribute('data-type');
-            const value = element.getAttribute('data-value');
-            
-            // Update filter state
-            if (type === 'hari') {
-                filterState.hari = value;
-                filterState.semua_hari = false;
-            } else if (type === 'semua_hari') {
-                filterState.semua_hari = true;
-                filterState.hari = null;
-            } else if (type === 'kelas') {
-                filterState.kelas = value;
-                filterState.semua_kelas = false;
-            } else if (type === 'semua_kelas') {
-                filterState.semua_kelas = true;
-                filterState.kelas = null;
-            }
-            
-            // Update UI
-            updateFilterUI();
-            
-            // Save state
-            saveCurrentFilter();
-            
-            // Jika di mobile, tutup sidebar terlebih dahulu
-            if (filterType.includes('mobile')) {
-                // Tutup sidebar
-                toggleSidebar();
-                
-                // Tunggu sidebar tertutup, lalu apply filter
-                setTimeout(() => {
-                    applyFilter();
-                }, 400);
-            } else {
-                // Apply filter langsung untuk desktop
-                applyFilter();
-            }
-        }
-
-        // Apply filter dan reload halaman
-        function applyFilter() {
-            const params = new URLSearchParams();
-            
-            // Tambahkan parameter hari
-            if (filterState.semua_hari) {
-                params.append('semua_hari', '1');
-            } else if (filterState.hari) {
-                params.append('hari', filterState.hari);
-            }
-            
-            // Tambahkan parameter kelas
-            if (filterState.semua_kelas) {
-                params.append('semua_kelas', '1');
-            } else if (filterState.kelas) {
-                params.append('kelas', filterState.kelas);
-            }
-            
-            // Update filter info sebelum redirect
-            updateFilterInfo();
-            
-            // Save to localStorage
-            saveCurrentFilter();
-            
-            // Redirect dengan parameter baru
-            window.location.href = 'index.php?' + params.toString();
-        }
-
-        // Save current filter ke localStorage
-        function saveCurrentFilter() {
+        // Fungsi untuk menyimpan filter ke localStorage
+        function saveFilterToLocalStorage() {
             try {
+                const params = new URLSearchParams(window.location.search);
                 const filterData = {
-                    ...filterState,
-                    last_update: new Date().toISOString()
+                    hari: params.get('hari'),
+                    semua_hari: params.get('semua_hari') === '1',
+                    kelas: params.get('kelas'),
+                    semua_kelas: params.get('semua_kelas') === '1',
+                    timestamp: new Date().getTime()
                 };
-                localStorage.setItem('jadwal_filter_state', JSON.stringify(filterData));
-            } catch (error) {
-                console.error('Error saving filter:', error);
+                
+                localStorage.setItem('jadwalFilter', JSON.stringify(filterData));
+            } catch (e) {
+                // Silent fail - tidak tampilkan error ke user
+                console.error('Gagal menyimpan filter:', e);
             }
         }
-
-        // Load saved filter dari localStorage
-        function loadSavedFilter() {
+        
+        // Fungsi untuk memuat filter dari localStorage
+        function loadFilterFromLocalStorage() {
             try {
-                const saved = localStorage.getItem('jadwal_filter_state');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    // Cek jika data masih fresh (kurang dari 7 hari)
-                    const lastUpdate = new Date(parsed.last_update);
-                    const now = new Date();
-                    const diffDays = (now - lastUpdate) / (1000 * 60 * 60 * 24);
+                const savedFilter = localStorage.getItem('jadwalFilter');
+                if (savedFilter) {
+                    const filterData = JSON.parse(savedFilter);
                     
-                    if (diffDays < 7) {
-                        filterState = parsed;
-                        return true;
-                    } else {
-                        localStorage.removeItem('jadwal_filter_state');
+                    // Validasi data tidak lebih dari 30 hari
+                    const thirtyDaysAgo = new Date().getTime() - (30 * 24 * 60 * 60 * 1000);
+                    if (filterData.timestamp && filterData.timestamp < thirtyDaysAgo) {
+                        localStorage.removeItem('jadwalFilter');
+                        return null;
+                    }
+                    
+                    return filterData;
+                }
+            } catch (e) {
+                localStorage.removeItem('jadwalFilter');
+            }
+            return null;
+        }
+        
+        // Fungsi untuk menerapkan filter yang disimpan jika tidak ada parameter GET
+        function applySavedFilterIfNeeded() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasUrlParams = urlParams.toString() !== '';
+                
+                // Jika tidak ada parameter di URL, coba gunakan filter yang disimpan
+                if (!hasUrlParams) {
+                    const savedFilter = loadFilterFromLocalStorage();
+                    if (savedFilter) {
+                        // Bangun URL dengan filter yang disimpan
+                        const params = new URLSearchParams();
+                        
+                        if (savedFilter.semua_hari) {
+                            params.append('semua_hari', '1');
+                        } else if (savedFilter.hari) {
+                            params.append('hari', savedFilter.hari);
+                        }
+                        
+                        if (savedFilter.semua_kelas) {
+                            params.append('semua_kelas', '1');
+                        } else if (savedFilter.kelas) {
+                            params.append('kelas', savedFilter.kelas);
+                        }
+                        
+                        const queryString = params.toString();
+                        if (queryString) {
+                            // Gunakan replaceState untuk mengubah URL tanpa reload
+                            window.history.replaceState({}, '', `index.php?${queryString}`);
+                            // Reload halaman untuk menerapkan filter
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 100);
+                            return true;
+                        }
                     }
                 }
-            } catch (error) {
-                console.error('Error loading saved filter:', error);
+                // Jika ada parameter, simpan ke localStorage
+                else {
+                    saveFilterToLocalStorage();
+                }
+            } catch (e) {
+                console.error('Error applying saved filter:', e);
             }
             return false;
         }
-
-        // Apply saved filter jika tidak ada parameter URL
-        function applySavedFilterIfNeeded() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const hasFilterParams = urlParams.has('hari') || urlParams.has('semua_hari') || 
-                                   urlParams.has('kelas') || urlParams.has('semua_kelas');
+        
+        // Simple initialization - let main.js handle the events
+        document.addEventListener('DOMContentLoaded', function() {
+            // Terapkan filter yang disimpan jika diperlukan
+            applySavedFilterIfNeeded();
             
-            // Jika tidak ada parameter di URL dan ada saved filter
-            if (!hasFilterParams && loadSavedFilter()) {
-                const params = new URLSearchParams();
+            // Initialize Bootstrap tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Load saved schedule visibility preference
+            const scheduleVisible = localStorage.getItem('scheduleVisible');
+            if (scheduleVisible === 'false') {
+                const section = document.getElementById('currentNextSection');
+                const toggleText = document.getElementById('toggleText');
+                if (section && toggleText) {
+                    section.classList.add('collapsed-section');
+                    toggleText.textContent = 'Tampilkan';
+                }
+            }
+            
+            // Initialize countdown timer if needed
+            <?php if ($jadwal_berikutnya && $waktu_tunggu_detik > 0): ?>
+            // Simpan waktu tunggu di variabel global
+            window.waktuTungguDetik = <?php echo $waktu_tunggu_detik; ?>;
+            
+            // Mulai countdown timer
+            startCountdownTimer();
+            <?php endif; ?>
+            
+            // Auto-update current time every minute
+            setInterval(() => {
+                const now = new Date();
+                const currentTime = now.toLocaleTimeString('id-ID', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false
+                });
                 
-                if (filterState.semua_hari) {
-                    params.append('semua_hari', '1');
-                } else if (filterState.hari) {
-                    params.append('hari', filterState.hari);
+                const timeBadge = document.getElementById('currentTime');
+                if (timeBadge) {
+                    timeBadge.textContent = currentTime;
                 }
-                
-                if (filterState.semua_kelas) {
-                    params.append('semua_kelas', '1');
-                } else if (filterState.kelas) {
-                    params.append('kelas', filterState.kelas);
-                }
-                
-                // Redirect ke saved filter
-                if (params.toString()) {
-                    window.location.href = `index.php?${params.toString()}`;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        // Fungsi untuk update informasi filter di current section
-        function updateFilterInfo() {
-            const hariFilter = filterState.semua_hari ? 'Semua Hari' : 
-                              (filterState.hari === '1' ? 'SENIN' :
-                               filterState.hari === '2' ? 'SELASA' :
-                               filterState.hari === '3' ? 'RABU' :
-                               filterState.hari === '4' ? 'KAMIS' :
-                               filterState.hari === '5' ? 'JUMAT' : 'Hari Ini');
+            }, 60000);
             
-            const kelasFilter = filterState.semua_kelas ? 'Semua Kelas' : filterState.kelas;
-            
-            // Update judul section
-            const titleElement = document.querySelector('#currentNextSection h4');
-            if (titleElement) {
-                if (filterState.semua_hari) {
-                    titleElement.innerHTML = `<i class="fas fa-clock me-2"></i> Jadwal Saat Ini (Semua Hari)`;
-                } else {
-                    titleElement.innerHTML = `<i class="fas fa-clock me-2"></i> Jadwal ${hariFilter}`;
-                }
+            // Fungsi untuk refresh jadwal berikutnya ketika filter kelas berubah
+            function updateNextScheduleOnClassChange() {
+                // Event listener untuk perubahan filter kelas
+                document.querySelectorAll('.filter-tab[data-type="kelas"], .filter-tab[data-type="semua_kelas"]').forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        // Karena jadwal berikutnya berdasarkan kelas, kita perlu refresh
+                        setTimeout(() => {
+                            location.reload();
+                        }, 100);
+                    });
+                });
             }
             
-            // Update filter display
-            const filterDisplay = document.getElementById('filterDisplay');
-            if (filterDisplay) {
-                let html = `<div class="current-filter-info">`;
-                html += `<strong>Filter Aktif:</strong> `;
-                html += `<span class="badge bg-primary me-2">${filterState.semua_hari ? 'Semua Hari' : hariFilter}</span>`;
-                html += `<span class="badge bg-success">${filterState.semua_kelas ? 'Semua Kelas' : kelasFilter}</span>`;
-                html += `</div>`;
-                filterDisplay.innerHTML = html;
-            }
-        }
+            // Panggil fungsi saat halaman dimuat
+            updateNextScheduleOnClassChange();
+        });
 
-        // ============================================
-        // UI FUNCTIONS
-        // ============================================
-
-        // Tampilkan semua jadwal
-        function handleShowAllSchedule() {
-            filterState.semua_hari = true;
-            filterState.semua_kelas = true;
-            
-            // Tutup sidebar jika di mobile
-            if (window.innerWidth < 768) {
-                toggleSidebar();
-                setTimeout(() => {
-                    applyFilter();
-                }, 400);
-            } else {
-                applyFilter();
-            }
-        }
-
-        // Reset filter ke default
-        function handleResetFilter() {
-            const hariSekarang = <?php echo date('N'); ?>;
-            const kelasPertama = <?php echo json_encode($kelas_list[0] ?? 'A1'); ?>;
-            
-            filterState.hari = hariSekarang;
-            filterState.semua_hari = false;
-            filterState.kelas = kelasPertama;
-            filterState.semua_kelas = false;
-            
-            // Tutup sidebar jika di mobile
-            if (window.innerWidth < 768) {
-                toggleSidebar();
-                setTimeout(() => {
-                    applyFilter();
-                }, 400);
-            } else {
-                applyFilter();
-            }
-        }
-
-        // Toggle Sidebar Mobile
-        function toggleSidebar() {
+        // Global functions accessible from HTML onclick
+        window.toggleSidebar = function() {
             const sidebar = document.getElementById('mobileSidebar');
             const overlay = document.getElementById('sidebarOverlay');
             
-            sidebar.classList.toggle('show');
-            overlay.classList.toggle('show');
-            
-            // Prevent body scroll when sidebar is open
-            document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
-        }
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+                document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+            }
+        };
 
-        // Toggle current schedule section
-        let isScheduleVisible = true;
-        function toggleCurrentSchedule() {
+        window.handleShowAllSchedule = function() {
+            // Simpan filter "semua" sebelum redirect
+            const allFilter = {
+                hari: null,
+                semua_hari: true,
+                kelas: null,
+                semua_kelas: true,
+                timestamp: new Date().getTime()
+            };
+            
+            try {
+                localStorage.setItem('jadwalFilter', JSON.stringify(allFilter));
+            } catch (e) {
+                // Silent fail
+            }
+            
+            window.location.href = 'index.php?semua_hari=1&semua_kelas=1';
+        };
+
+        window.handleResetFilter = function() {
+            // Reset to current day and first class
+            const hariSekarang = currentDay > 5 ? 1 : currentDay;
+            const kelasPertama = firstClass;
+            
+            // Simpan filter reset
+            const resetFilter = {
+                hari: hariSekarang,
+                semua_hari: false,
+                kelas: kelasPertama,
+                semua_kelas: false,
+                timestamp: new Date().getTime()
+            };
+            
+            try {
+                localStorage.setItem('jadwalFilter', JSON.stringify(resetFilter));
+            } catch (e) {
+                // Silent fail
+            }
+            
+            window.location.href = `index.php?hari=${hariSekarang}&kelas=${encodeURIComponent(kelasPertama)}`;
+        };
+
+        window.toggleCurrentSchedule = function() {
             const section = document.getElementById('currentNextSection');
             const toggleText = document.getElementById('toggleText');
             
-            section.classList.toggle('collapsed-section');
-            
-            if (section.classList.contains('collapsed-section')) {
-                toggleText.textContent = 'Tampilkan';
-                isScheduleVisible = false;
-            } else {
-                toggleText.textContent = 'Sembunyikan';
-                isScheduleVisible = true;
-            }
-            
-            // Save preference to localStorage
-            localStorage.setItem('scheduleVisible', isScheduleVisible);
-        }
-
-        // Refresh current schedule
-        function refreshCurrentSchedule() {
-            const refreshBtn = event.target.closest('button');
-            if (refreshBtn) {
-                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                refreshBtn.disabled = true;
+            if (section && toggleText) {
+                section.classList.toggle('collapsed-section');
                 
-                setTimeout(() => {
-                    window.location.reload();
-                }, 500);
+                if (section.classList.contains('collapsed-section')) {
+                    toggleText.textContent = 'Tampilkan';
+                    try {
+                        localStorage.setItem('scheduleVisible', 'false');
+                    } catch (e) {
+                        // Silent fail
+                    }
+                } else {
+                    toggleText.textContent = 'Sembunyikan';
+                    try {
+                        localStorage.setItem('scheduleVisible', 'true');
+                    } catch (e) {
+                        // Silent fail
+                    }
+                }
             }
-        }
+        };
 
-        // ============================================
-        // COUNTDOWN TIMER
-        // ============================================
+        window.refreshCurrentSchedule = function(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            window.location.reload();
+        };
 
-        <?php if ($jadwal_berikutnya && $waktu_tunggu_detik > 0): ?>
-        function updateCountdownTimer() {
-            // Hitung waktu target dari waktu tunggu dalam detik
-            const targetTime = new Date();
-            targetTime.setSeconds(targetTime.getSeconds() + <?php echo $waktu_tunggu_detik; ?>);
+        // FUNGSI COUNTDOWN TIMER YANG DIPERBAIKI
+        window.startCountdownTimer = function() {
+            if (!window.waktuTungguDetik || window.waktuTungguDetik <= 0) {
+                console.log('Tidak ada waktu tunggu untuk countdown');
+                return;
+            }
+
+            let remainingSeconds = window.waktuTungguDetik;
             
-            function updateDisplay() {
-                const now = new Date();
-                const timeDiff = targetTime - now;
-                
-                if (timeDiff <= 0) {
-                    // Jika sudah waktunya, refresh halaman
+            function updateCountdown() {
+                if (remainingSeconds <= 0) {
+                    // Reload halaman ketika countdown selesai
                     window.location.reload();
                     return;
                 }
                 
                 // Hitung hari, jam, menit, detik
-                const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+                const days = Math.floor(remainingSeconds / (24 * 3600));
+                const hours = Math.floor((remainingSeconds % (24 * 3600)) / 3600);
+                const minutes = Math.floor((remainingSeconds % 3600) / 60);
+                const seconds = remainingSeconds % 60;
                 
-                // Update tampilan
+                // Update elemen HTML
                 const daysElement = document.getElementById('countdownDays');
                 const hoursElement = document.getElementById('countdownHours');
                 const minutesElement = document.getElementById('countdownMinutes');
                 const secondsElement = document.getElementById('countdownSeconds');
                 
-                if (daysElement) daysElement.textContent = days;
+                if (daysElement) daysElement.textContent = days.toString().padStart(2, '0');
                 if (hoursElement) hoursElement.textContent = hours.toString().padStart(2, '0');
                 if (minutesElement) minutesElement.textContent = minutes.toString().padStart(2, '0');
                 if (secondsElement) secondsElement.textContent = seconds.toString().padStart(2, '0');
                 
-                // Pulsing animation untuk detik terakhir
-                if (days === 0 && hours === 0 && minutes === 0 && seconds < 30) {
-                    secondsElement.classList.add('countdown-pulse');
-                } else {
-                    secondsElement.classList.remove('countdown-pulse');
-                }
+                // Kurangi waktu
+                remainingSeconds--;
             }
             
-            // Jalankan sekali di awal
-            updateDisplay();
+            // Jalankan segera
+            updateCountdown();
             
             // Update setiap detik
-            setInterval(updateDisplay, 1000);
-        }
+            window.countdownInterval = setInterval(updateCountdown, 1000);
+        };
         
-        // Jalankan countdown timer
-        updateCountdownTimer();
-        <?php endif; ?>
-
-        // ============================================
-        // SCHEDULE DETAIL MODAL
-        // ============================================
-
-        // Show schedule detail
-        function showScheduleDetail(schedule) {
-            // Parse schedule data jika masih string JSON
-            if (typeof schedule === 'string') {
-                try {
-                    schedule = JSON.parse(schedule);
-                } catch (e) {
-                    console.error('Error parsing schedule:', e);
-                    return;
-                }
+        // Hentikan interval saat halaman ditutup
+        window.addEventListener('beforeunload', function() {
+            if (window.countdownInterval) {
+                clearInterval(window.countdownInterval);
             }
-            
-            // Get room data from body attribute
-            let ruanganData = {};
-            try {
-                const ruanganAttr = document.body.getAttribute('data-ruangan');
-                if (ruanganAttr) {
-                    ruanganData = JSON.parse(ruanganAttr);
-                }
-            } catch (e) {
-                console.error('Error loading room data:', e);
-            }
-            
-            const ruang = ruanganData[schedule.ruang] || {};
-            
-            const modalBody = document.getElementById('scheduleDetail');
-            
-            // Format waktu yang lebih user-friendly
-            const waktuParts = schedule.waktu.split(' - ');
-            const waktuFormatted = waktuParts.length === 2 ? 
-                `${waktuParts[0]} - ${waktuParts[1]}` : schedule.waktu;
-            
-            // Determine current status
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-            const [startHour, startMinute] = waktuParts[0].split(':').map(Number);
-            const startTime = startHour * 60 + startMinute;
-            const [endHour, endMinute] = waktuParts[1]?.split(':').map(Number) || [0, 0];
-            const endTime = endHour * 60 + endMinute;
-            
-            let statusBadge = '';
-            if (currentTime >= startTime && currentTime <= endTime) {
-                statusBadge = `<span class="badge bg-success mb-3"><i class="fas fa-play-circle me-1"></i> Sedang Berlangsung</span>`;
-            } else if (currentTime < startTime) {
-                statusBadge = `<span class="badge bg-primary mb-3"><i class="fas fa-clock me-1"></i> Akan Datang</span>`;
-            } else {
-                statusBadge = `<span class="badge bg-secondary mb-3"><i class="fas fa-check-circle me-1"></i> Selesai</span>`;
-            }
-            
-            let html = `
-                <div class="schedule-detail">
-                    ${statusBadge}
-                    <div class="detail-header mb-4">
-                        <h4 class="text-primary fw-bold mb-3">${escapeHtml(schedule.mata_kuliah)}</h4>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="text-muted mb-2">
-                                    <i class="fas fa-calendar-day me-2"></i>
-                                    ${schedule.hari}, ${waktuFormatted}
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="text-muted mb-2">
-                                    <i class="fas fa-clock me-2"></i>
-                                    Jam ke-${schedule.jam_ke}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <div class="info-card bg-light p-3 rounded-3">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="info-icon bg-primary text-white rounded-circle p-2 me-3">
-                                        <i class="fas fa-graduation-cap"></i>
-                                    </div>
-                                    <div>
-                                        <small class="text-muted d-block">Kelas</small>
-                                        <strong class="text-dark fs-5">${schedule.kelas}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="info-card bg-light p-3 rounded-3">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="info-icon bg-success text-white rounded-circle p-2 me-3">
-                                        <i class="fas fa-door-open"></i>
-                                    </div>
-                                    <div>
-                                        <small class="text-muted d-block">Ruang</small>
-                                        <strong class="text-dark fs-5">${schedule.ruang}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="dosen-info mb-4 p-3 bg-primary-light rounded-3">
-                        <h6 class="mb-3 d-flex align-items-center">
-                            <i class="fas fa-user-tie me-2 text-primary"></i>
-                            Dosen Pengampu
-                        </h6>
-                        <p class="mb-0 fw-semibold fs-5">${escapeHtml(schedule.dosen)}</p>
-                    </div>
-                    
-                    ${ruang.deskripsi ? `
-                    <div class="ruang-info mb-4 p-3 bg-info-light rounded-3">
-                        <h6 class="mb-3 d-flex align-items-center">
-                            <i class="fas fa-info-circle me-2 text-info"></i>
-                            Informasi Ruangan
-                        </h6>
-                        <p class="mb-0">${escapeHtml(ruang.deskripsi)}</p>
-                    </div>
-                    ` : ''}
-                    
-                    ${ruang.foto_path ? `
-                    <div class="ruang-photo mb-4">
-                        <h6 class="mb-3 d-flex align-items-center">
-                            <i class="fas fa-image me-2 text-warning"></i>
-                            Foto Ruangan
-                        </h6>
-                        <div class="photo-container position-relative">
-                            <img src="${escapeHtml(ruang.foto_path)}" 
-                                 alt="Ruang ${escapeHtml(schedule.ruang)}" 
-                                 class="img-fluid rounded-3 w-100" 
-                                 style="max-height: 300px; object-fit: cover;"
-                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/800x400/4361ee/ffffff?text=RUANG+${escapeHtml(schedule.ruang)}'">
-                            <div class="photo-overlay position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-10 rounded-3"></div>
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="schedule-meta mt-4 pt-3 border-top">
-                        <h6 class="mb-3 d-flex align-items-center">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Informasi Akademik
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <small class="text-muted">Semester</small>
-                                    <strong class="${schedule.semester === 'GANJIL' ? 'text-warning' : 'text-success'}">
-                                        ${schedule.semester}
-                                    </strong>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                    <small class="text-muted">Tahun Akademik</small>
-                                    <strong>${schedule.tahun_akademik}</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            modalBody.innerHTML = html;
-            
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
-            modal.show();
-            
-            // Handle modal close
-            modal._element.addEventListener('hidden.bs.modal', function () {
-                modalBody.innerHTML = '';
-            });
-        }
-
-        // ============================================
-        // UTILITY FUNCTIONS
-        // ============================================
-
-        // Utility function to escape HTML
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Setup auto-refresh current time
-        function updateCurrentTime() {
-            const now = new Date();
-            const currentTime = now.toLocaleTimeString('id-ID', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false
-            });
-            
-            const timeBadge = document.getElementById('currentTime');
-            if (timeBadge) {
-                timeBadge.textContent = currentTime;
-            }
-        }
-
-        // Setup filter display element
-        function setupFilterDisplay() {
-            // Tambahkan elemen untuk menampilkan filter info
-            const currentSection = document.getElementById('currentScheduleContent');
-            if (currentSection && !document.getElementById('filterDisplay')) {
-                const filterDiv = document.createElement('div');
-                filterDiv.id = 'filterDisplay';
-                currentSection.insertBefore(filterDiv, currentSection.firstChild);
-                
-                // Initial update
-                updateFilterDisplayFromURL();
-            }
-        }
-
-        function updateFilterDisplayFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            const filterInfo = {
-                hari: params.has('hari') ? 
-                    (params.get('hari') === '1' ? 'SENIN' :
-                     params.get('hari') === '2' ? 'SELASA' :
-                     params.get('hari') === '3' ? 'RABU' :
-                     params.get('hari') === '4' ? 'KAMIS' :
-                     params.get('hari') === '5' ? 'JUMAT' : 'Hari Ini') : 'Hari Ini',
-                kelas: params.has('kelas') ? params.get('kelas') : 
-                       params.has('semua_kelas') ? 'Semua Kelas' : 'Default',
-                semua_hari: params.has('semua_hari'),
-                semua_kelas: params.has('semua_kelas')
-            };
-            
-            // Update filter display jika elemen ada
-            const filterDisplay = document.getElementById('filterDisplay');
-            if (filterDisplay) {
-                let html = `<div class="current-filter-info">`;
-                html += `<strong>Filter Aktif:</strong> `;
-                html += `<span class="badge bg-primary me-2">${filterInfo.semua_hari ? 'Semua Hari' : filterInfo.hari}</span>`;
-                html += `<span class="badge bg-success">${filterInfo.semua_kelas ? 'Semua Kelas' : filterInfo.kelas}</span>`;
-                html += `</div>`;
-                filterDisplay.innerHTML = html;
-            }
-        }
-
-        // Load saved preferences
-        function loadPreferences() {
-            const scheduleVisible = localStorage.getItem('scheduleVisible');
-            if (scheduleVisible === 'false') {
-                toggleCurrentSchedule(); // Collapse if saved as hidden
-            }
-        }
-
-        // ============================================
-        // INITIALIZATION
-        // ============================================
-
-        // Initialize on DOM loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize filter state dan UI
-            initializeFilterState();
-            
-            // Setup filter display
-            setupFilterDisplay();
-            
-            // Load preferences
-            loadPreferences();
-            
-            // Update current time
-            updateCurrentTime();
-            
-            // Update time every minute
-            setInterval(updateCurrentTime, 60000);
-            
-            // Apply saved filter jika perlu
-            applySavedFilterIfNeeded();
-            
-            // Setup detail buttons dengan event delegation
-            document.addEventListener('click', function(e) {
-                if (e.target.closest('.btn-detail')) {
-                    const btn = e.target.closest('.btn-detail');
-                    try {
-                        const scheduleData = btn.getAttribute('data-schedule');
-                        if (scheduleData) {
-                            showScheduleDetail(scheduleData);
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('Terjadi kesalahan saat memuat detail');
-                    }
-                }
-            });
-            
-            // Close sidebar when clicking outside on overlay
-            document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
-            
-            // Add keyboard support for sidebar
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    const sidebar = document.getElementById('mobileSidebar');
-                    if (sidebar && sidebar.classList.contains('show')) {
-                        toggleSidebar();
-                    }
-                }
-            });
         });
     </script>
+    
+    <!-- Inisialisasi Countdown Timer jika ada -->
+    <?php if ($jadwal_berikutnya && $waktu_tunggu_detik > 0): ?>
+    <script>
+        // Inisialisasi countdown saat halaman selesai dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof startCountdownTimer === 'function') {
+                startCountdownTimer();
+            }
+        });
+    </script>
+    <?php endif; ?>
 </body>
 </html>

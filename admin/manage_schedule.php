@@ -6,8 +6,23 @@ ini_set('display_errors', 1);
 require_once '../config/database.php';
 require_once '../config/helpers.php';
 
-require_once 'check_auth.php';
-requireAdmin();
+// Mulai session jika belum dimulai
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Cek autentikasi dan role
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+// Cek apakah user adalah admin atau superadmin
+if (!in_array($_SESSION['role'], ['admin', 'superadmin'])) {
+    $_SESSION['error'] = "Akses ditolak. Halaman ini hanya untuk admin.";
+    header("Location: login.php");
+    exit();
+}
 
 $database = new Database();
 $db = $database->getConnection();
@@ -30,6 +45,9 @@ if (!$user) {
 
 // Simpan password hash untuk verifikasi nanti
 $_SESSION['password_hash'] = $user['password'];
+
+// Set current_page untuk sidebar
+$current_page = 'manage_schedule.php';
 
 // =======================================================
 // AMBIL DATA SEMESTER DARI semester_settings
@@ -287,31 +305,50 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Viewport untuk mobile yang lebih ketat -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>Kelola Jadwal - Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
     <style>
+        /* Reset CSS untuk mobile */
+        * {
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        html, body {
+            width: 100%;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        
         .sidebar {
             background: linear-gradient(135deg, #2c3e50, #4a6491);
             color: white;
             min-height: 100vh;
             position: fixed;
             width: 250px;
-            z-index: 1000;
+            z-index: 1050;
+            overflow-y: auto;
         }
+        
         .main-content {
             margin-left: 250px;
             padding: 20px;
             min-height: 100vh;
             background-color: #f8f9fa;
+            width: calc(100% - 250px);
         }
+        
         .navbar-custom {
             background: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 15px 0;
         }
+        
         .sidebar .nav-link {
             color: rgba(255,255,255,0.8);
             padding: 12px 20px;
@@ -319,14 +356,17 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             border-radius: 10px;
             transition: all 0.3s;
         }
+        
         .sidebar .nav-link:hover, .sidebar .nav-link.active {
             background: rgba(255,255,255,0.1);
             color: white;
         }
+        
         .sidebar .nav-link i {
             width: 20px;
             margin-right: 10px;
         }
+        
         .user-avatar {
             width: 40px;
             height: 40px;
@@ -338,32 +378,242 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             color: white;
             font-weight: bold;
         }
+        
+        /* ========== PERBAIKAN UNTUK MOBILE ========== */
         @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: relative;
-                min-height: auto;
-                display: none;
-            }
-            .sidebar.mobile-show {
-                display: block;
-            }
+            /* Main content mobile */
             .main-content {
                 margin-left: 0;
+                width: 100%;
+                padding: 15px 10px;
             }
-            .mobile-overlay {
+            
+            /* Navbar fixed untuk mobile */
+            .mobile-nav-fixed {
                 position: fixed;
                 top: 0;
                 left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 999;
+                right: 0;
+                z-index: 1040;
+                background: white;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            
+            .content-with-fixed-nav {
+                padding-top: 70px;
+            }
+            
+            /* Perbaikan untuk semua elemen agar tidak keluar layar */
+            .container-fluid, .container {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+                max-width: 100% !important;
+            }
+            
+            .row {
+                margin-left: -5px;
+                margin-right: -5px;
+            }
+            
+            .col, .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12,
+            .col-md, .col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12 {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+            
+            /* Page header mobile */
+            .page-header {
+                padding: 15px;
+                margin: 10px 0 15px 0;
+                border-radius: 8px;
+            }
+            
+            /* Filter section mobile */
+            .filter-section {
+                padding: 15px 10px;
+                margin: 0 0 15px 0;
+                border-radius: 8px;
+            }
+            
+            /* Table container mobile */
+            .table-container {
+                padding: 10px;
+                border-radius: 8px;
+                margin: 0;
+            }
+            
+            /* Table responsive */
+            .table-responsive {
+                border-radius: 8px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Stat cards mobile */
+            .stat-card {
+                padding: 12px 8px;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                text-align: center;
+            }
+            
+            .stat-card i {
+                font-size: 1.5rem;
+                margin-bottom: 5px;
+            }
+            
+            .stat-card .number {
+                font-size: 1.2rem;
+            }
+            
+            .stat-card .label {
+                font-size: 0.8rem;
+            }
+            
+            /* Tombol mobile */
+            .btn {
+                padding: 8px 12px;
+                font-size: 14px;
+                white-space: nowrap;
+            }
+            
+            .btn-sm {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+            
+            /* Form controls mobile */
+            .form-control, .form-select {
+                font-size: 14px;
+                padding: 8px 12px;
+            }
+            
+            /* Tabel mobile */
+            table {
+                font-size: 12px;
+            }
+            
+            .table td, .table th {
+                padding: 8px 5px;
+            }
+            
+            /* Badge mobile */
+            .badge {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+            
+            /* Modal mobile */
+            .modal-dialog {
+                margin: 10px;
+                max-width: calc(100vw - 20px);
+            }
+            
+            .modal-body {
+                max-height: 65vh;
+                overflow-y: auto;
+                padding: 15px;
+            }
+            
+            /* DataTables mobile */
+            .dataTables_wrapper .dataTables_length,
+            .dataTables_wrapper .dataTables_filter,
+            .dataTables_wrapper .dataTables_info,
+            .dataTables_wrapper .dataTables_paginate {
+                padding: 0 5px;
+                font-size: 12px;
+            }
+            
+            /* Alert mobile */
+            .alert {
+                padding: 10px 15px;
+                font-size: 14px;
+                margin: 10px 0;
+            }
+            
+            /* Toggler button styling */
+            .navbar-toggler.btn-light {
+                border: 1px solid #ddd;
+                padding: 6px 10px;
+            }
+            
+            /* Atur konten untuk mobile dengan navbar fixed */
+            .content-with-fixed-nav {
+                padding-top: 70px;
+            }
+            
+            /* Hilangkan overflow horizontal di body */
+            body {
+                overflow-x: hidden;
+                position: relative;
             }
         }
+        
+        /* Untuk layar sangat kecil (di bawah 576px) */
+        @media (max-width: 576px) {
+            .main-content {
+                padding: 10px 8px;
+            }
+            
+            .page-header h5 {
+                font-size: 1.1rem;
+            }
+            
+            .page-header p {
+                font-size: 0.9rem;
+            }
+            
+            .filter-section h6 {
+                font-size: 1rem;
+            }
+            
+            /* Grid system untuk mobile kecil */
+            .row.g-2 {
+                margin-left: -4px;
+                margin-right: -4px;
+            }
+            
+            .row.g-2 > [class*="col-"] {
+                padding-left: 4px;
+                padding-right: 4px;
+            }
+            
+            /* Tombol aksi di tabel */
+            .btn-group-mobile {
+                display: flex;
+                gap: 4px;
+            }
+            
+            .btn-group-mobile .btn {
+                padding: 3px 6px;
+                min-width: 32px;
+            }
+            
+            /* Waktu di form */
+            .time-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .time-row > div {
+                width: 100%;
+            }
+            
+            /* Modal untuk mobile kecil */
+            .modal-header, .modal-footer {
+                padding: 12px 15px;
+            }
+            
+            .modal-title {
+                font-size: 1.1rem;
+            }
+        }
+        
+        /* ========== STYLE UMUM (Desktop & Mobile) ========== */
         .content-wrapper {
             padding-top: 20px;
         }
+        
         .page-header {
             background: white;
             padding: 20px;
@@ -371,49 +621,52 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             margin-bottom: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        
         .card {
             border-radius: 10px;
             border: none;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        .table-container {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+        
         .btn-danger {
             background: linear-gradient(135deg, #dc3545, #c82333);
             border: none;
             transition: all 0.3s;
         }
+        
         .btn-danger:hover {
             background: linear-gradient(135deg, #c82333, #bd2130);
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
         }
+        
         .modal-header.bg-danger {
             background: linear-gradient(135deg, #dc3545, #c82333) !important;
         }
+        
         .btn-close-white {
             filter: invert(1) grayscale(100%) brightness(200%);
         }
+        
         .dataTables_wrapper .dataTables_length,
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_paginate {
             margin: 10px 0;
         }
+        
         .alert {
             border: none;
             border-radius: 10px;
         }
+        
         .badge-count {
             font-size: 0.8em;
             padding: 3px 8px;
             border-radius: 10px;
         }
+        
         .time-slot {
             font-size: 0.85em;
             color: #666;
@@ -421,34 +674,17 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             padding: 2px 6px;
             border-radius: 4px;
         }
-        .time-input-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .time-input-group .form-control {
-            flex: 1;
-        }
-        .time-separator {
-            font-weight: bold;
-            color: #666;
-            margin: 0 5px;
-        }
+        
         .time-row {
             display: flex;
             align-items: center;
             gap: 10px;
         }
+        
         .time-row > div {
             flex: 1;
         }
-        .filter-badge {
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .filter-badge:hover {
-            transform: scale(1.1);
-        }
+        
         .stat-card {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
@@ -456,18 +692,22 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             padding: 15px;
             margin-bottom: 15px;
         }
+        
         .stat-card i {
             font-size: 2rem;
             margin-bottom: 10px;
         }
+        
         .stat-card .number {
             font-size: 1.5rem;
             font-weight: bold;
         }
+        
         .stat-card .label {
             font-size: 0.9rem;
             opacity: 0.9;
         }
+        
         .filter-section {
             background: white;
             border-radius: 10px;
@@ -475,40 +715,119 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             margin-bottom: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        
         .filter-section h6 {
             color: #2c3e50;
             font-weight: 600;
         }
+        
         .active-filter {
             border-left: 4px solid #4a6491;
             background-color: #f8f9fa;
         }
+        
+        /* DataTables responsive */
+        .dataTables_scroll {
+            width: 100% !important;
+        }
+        
+        .dataTables_scrollBody {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Perbaikan untuk modal di mobile */
+        .modal {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        .modal-backdrop {
+            z-index: 1040;
+        }
+        
+        /* Utility classes */
+        .flex-fill {
+            flex: 1 1 auto;
+        }
+        
+        .gap-1 { gap: 0.25rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 1rem; }
     </style>
 </head>
 <body>
     <div class="d-flex">
-        <!-- Sidebar -->
-        <?php include 'templates/sidebar.php'; ?>
+        <!-- Sidebar Desktop -->
+        <div class="sidebar d-none d-md-block">
+            <div class="p-4">
+                <h3 class="mb-4"><i class="fas fa-calendar-alt"></i> Admin Panel</h3>
+                <div class="user-info mb-4">
+                    <div class="d-flex align-items-center">
+                        <div class="user-avatar me-3">
+                            <?php echo strtoupper(substr($_SESSION['username'], 0, 1)); ?>
+                        </div>
+                        <div>
+                            <h6 class="mb-0"><?php echo htmlspecialchars($_SESSION['username']); ?></h6>
+                            <small class="text-muted"><?php echo ucfirst($_SESSION['role']); ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="nav flex-column">
+                <a class="nav-link <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_schedule.php' ? 'active' : ''; ?>" href="manage_schedule.php">
+                    <i class="fas fa-calendar"></i> Kelola Jadwal
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_rooms.php' ? 'active' : ''; ?>" href="manage_rooms.php">
+                    <i class="fas fa-door-open"></i> Kelola Ruangan
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_semester.php' ? 'active' : ''; ?>" href="manage_semester.php">
+                    <i class="fas fa-calendar-alt"></i> Kelola Semester
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_settings.php' ? 'active' : ''; ?>" href="manage_settings.php">
+                    <i class="fas fa-cog"></i> Pengaturan
+                </a>
+                <a class="nav-link <?php echo $current_page == 'manage_users.php' ? 'active' : ''; ?>" href="manage_users.php">
+                    <i class="fas fa-users"></i> Kelola Admin
+                </a>
+                <a class="nav-link <?php echo $current_page == 'reports.php' ? 'active' : ''; ?>" href="reports.php">
+                    <i class="fas fa-chart-bar"></i> Laporan
+                </a>
+                <div class="mt-4"></div>
+                <a class="nav-link <?php echo $current_page == 'profile.php' ? 'active' : ''; ?>" href="profile.php">
+                    <i class="fas fa-user"></i> Profile
+                </a>
+                <a class="nav-link" href="logout.php">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </nav>
+        </div>
 
         <!-- Main Content -->
         <div class="main-content flex-grow-1">
-            <!-- Navbar -->
-            <nav class="navbar navbar-expand-lg navbar-custom mb-4">
+            <!-- NAVBAR MOBILE -->
+            <nav class="navbar navbar-expand-lg navbar-custom d-md-none mb-4">
                 <div class="container-fluid">
-                    <button class="navbar-toggler d-md-none" type="button" onclick="toggleMobileSidebar()">
+                    <!-- Tombol hamburger untuk toggle sidebar mobile - SAMA SEPERTI DASHBOARD -->
+                    <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#mobileSidebar">
                         <i class="fas fa-bars"></i>
                     </button>
+                    
                     <div class="d-flex align-items-center">
-                        <h4 class="mb-0">Kelola Jadwal Kuliah</h4>
+                        <h4 class="mb-0">Kelola Jadwal</h4>
                     </div>
+                    
                     <div class="d-flex align-items-center">
-                        <span class="me-3"><?php echo date('d F Y'); ?></span>
                         <div class="dropdown">
                             <button class="btn btn-light dropdown-toggle" type="button" 
                                     data-bs-toggle="dropdown">
-                                <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                <i class="fas fa-user"></i>
                             </button>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="profile.php">
                                     <i class="fas fa-user me-2"></i>Profile
                                 </a></li>
@@ -522,9 +841,256 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 </div>
             </nav>
 
-            <!-- Content -->
-            <div class="content-wrapper">
-                <!-- Page Header -->
+            <!-- Mobile Sidebar Collapse - SAMA SEPERTI DASHBOARD -->
+            <div class="collapse d-md-none mb-4" id="mobileSidebar">
+                <div class="card">
+                    <div class="card-body">
+                       <nav class="nav flex-column">
+                            <a class="nav-link" href="dashboard.php">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                            <a class="nav-link" href="manage_schedule.php">
+                                <i class="fas fa-calendar"></i> Kelola Jadwal
+                            </a>
+                            <a class="nav-link" href="manage_rooms.php">
+                                <i class="fas fa-door-open"></i> Kelola Ruangan
+                            </a>
+                            <a class="nav-link" href="manage_semester.php">
+                                <i class="fas fa-calendar-alt"></i> Kelola Semester
+                            </a>
+                            <a class="nav-link active" href="manage_settings.php">
+                                <i class="fas fa-cog"></i> Pengaturan
+                            </a>
+                            <a class="nav-link" href="manage_users.php">
+                                <i class="fas fa-users"></i> Kelola Admin
+                            </a>
+                            <a class="nav-link" href="reports.php">
+                                <i class="fas fa-chart-bar"></i> Laporan
+                            </a>
+                            <hr>
+                            <a class="nav-link" href="profile.php">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a class="nav-link" href="logout.php">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content untuk Mobile -->
+            <div class="content-wrapper d-md-none content-with-fixed-nav">
+                <!-- Page Header untuk Mobile -->
+                <div class="page-header">
+                    <div>
+                        <h5 class="mb-1">Daftar Jadwal Kuliah</h5>
+                        <p class="text-muted mb-1">
+                            Kelola jadwal kuliah untuk semua kelas 
+                            <span class="badge bg-primary badge-count"><?php echo count($schedules); ?> data</span>
+                        </p>
+                        <small class="text-muted d-block mb-2">
+                            Semester Aktif: <strong><?php echo $semester_aktif; ?> - <?php echo $tahun_akademik_aktif; ?></strong>
+                        </small>
+                        
+                        <!-- Tombol untuk Mobile -->
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <button class="btn btn-danger flex-fill" data-bs-toggle="modal" data-bs-target="#deleteAllModal" <?php echo count($schedules) == 0 ? 'disabled' : ''; ?>>
+                                <i class="fas fa-trash-alt me-1"></i>Hapus Semua
+                            </button>
+                            <button class="btn btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#addModal">
+                                <i class="fas fa-plus me-1"></i>Tambah
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Section untuk Mobile -->
+                <div class="filter-section">
+                    <h6><i class="fas fa-filter me-2"></i>Filter Jadwal</h6>
+                    <form method="GET" class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label">Tahun Akademik</label>
+                            <select name="filter_tahun" class="form-control form-control-sm" onchange="this.form.submit()">
+                                <option value="all">Semua Tahun</option>
+                                <?php foreach($tahun_list as $tahun): ?>
+                                    <option value="<?php echo htmlspecialchars($tahun); ?>" 
+                                        <?php echo $filter_tahun == $tahun ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($tahun); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Semester</label>
+                            <select name="filter_semester" class="form-control form-control-sm" onchange="this.form.submit()">
+                                <option value="all">Semua Semester</option>
+                                <option value="GANJIL" <?php echo $filter_semester == 'GANJIL' ? 'selected' : ''; ?>>GANJIL</option>
+                                <option value="GENAP" <?php echo $filter_semester == 'GENAP' ? 'selected' : ''; ?>>GENAP</option>
+                            </select>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <a href="manage_schedule.php" class="btn btn-secondary btn-sm w-100">
+                                <i class="fas fa-redo me-1"></i>Reset Filter
+                            </a>
+                        </div>
+                    </form>
+                    <?php if($filter_tahun != 'all' || $filter_semester != 'all'): ?>
+                    <div class="mt-2 alert alert-info py-2">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Filter Aktif: 
+                        <?php if($filter_tahun != 'all'): ?>
+                            <span class="badge bg-info me-1">Tahun: <?php echo $filter_tahun; ?></span>
+                        <?php endif; ?>
+                        <?php if($filter_semester != 'all'): ?>
+                            <span class="badge bg-info">Semester: <?php echo $filter_semester; ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Statistics Cards untuk Mobile -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="stat-card text-center py-2">
+                            <i class="fas fa-calendar-alt fa-lg"></i>
+                            <div class="number"><?php echo count($schedules); ?></div>
+                            <div class="label">Total Jadwal</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-card text-center py-2" style="background: linear-gradient(135deg, #4CAF50, #2E7D32);">
+                            <i class="fas fa-users fa-lg"></i>
+                            <div class="number"><?php echo count($kelas_list_all); ?></div>
+                            <div class="label">Total Kelas</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-card text-center py-2" style="background: linear-gradient(135deg, #FF9800, #EF6C00);">
+                            <i class="fas fa-door-open fa-lg"></i>
+                            <div class="number"><?php echo count($rooms); ?></div>
+                            <div class="label">Total Ruangan</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-card text-center py-2" style="background: linear-gradient(135deg, #9C27B0, #6A1B9A);">
+                            <i class="fas fa-graduation-cap fa-lg"></i>
+                            <div class="number"><?php echo count($tahun_list); ?></div>
+                            <div class="label">Tahun Akademik</div>
+                        </div>
+                    </div>
+                </div>
+
+                <?php 
+                // Tampilkan pesan flash
+                if(isset($_SESSION['message'])) {
+                    echo "<div class='alert alert-success alert-dismissible fade show' role='alert'>
+                            {$_SESSION['message']}
+                            <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                          </div>";
+                    unset($_SESSION['message']);
+                }
+                if(isset($_SESSION['error'])) {
+                    echo "<div class='alert alert-danger alert-dismissible fade show' role='alert'>
+                            {$_SESSION['error']}
+                            <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                          </div>";
+                    unset($_SESSION['error']);
+                }
+                ?>
+
+                <!-- Data Table untuk Mobile -->
+                <div class="table-container">
+                    <?php if(count($schedules) == 0): ?>
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted">Belum ada data jadwal</h6>
+                            <p class="text-muted small">Mulai dengan menambahkan jadwal baru</p>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">
+                                <i class="fas fa-plus me-1"></i>Tambah Jadwal
+                            </button>
+                        </div>
+                    <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="scheduleTableMobile">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Kelas</th>
+                                    <th>Hari</th>
+                                    <th>Jam</th>
+                                    <th>Matkul</th>
+                                    <th>Dosen</th>
+                                    <th>Ruang</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $no = 1; ?>
+                                <?php foreach($schedules as $schedule): ?>
+                                <tr>
+                                    <td><?php echo $no++; ?></td>
+                                    <td>
+                                        <span class="badge bg-primary"><?php echo htmlspecialchars($schedule['kelas']); ?></span>
+                                    </td>
+                                    <td><small><?php echo substr($schedule['hari'], 0, 3); ?></small></td>
+                                    <td>
+                                        <span class="badge bg-info"><?php echo $schedule['jam_ke']; ?></span>
+                                    </td>
+                                    <td><small><?php echo substr(htmlspecialchars($schedule['mata_kuliah']), 0, 15); ?>...</small></td>
+                                    <td><small><?php echo substr(htmlspecialchars($schedule['dosen']), 0, 10); ?>...</small></td>
+                                    <td>
+                                        <span class="badge bg-success"><?php echo htmlspecialchars($schedule['ruang']); ?></span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group-mobile">
+                                            <button class="btn btn-sm btn-warning p-1" onclick="editSchedule(<?php echo htmlspecialchars(json_encode($schedule), ENT_QUOTES, 'UTF-8'); ?>)">
+                                                <i class="fas fa-edit fa-xs"></i>
+                                            </button>
+                                            <a href="?delete=<?php echo $schedule['id']; ?>" class="btn btn-sm btn-danger p-1" onclick="return confirm('Hapus jadwal ini?')">
+                                                <i class="fas fa-trash fa-xs"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Content untuk Desktop -->
+            <div class="content-wrapper d-none d-md-block">
+                <!-- Navbar untuk Desktop -->
+                <nav class="navbar navbar-expand-lg navbar-custom mb-4">
+                    <div class="container-fluid">
+                        <div class="d-flex align-items-center">
+                            <h4 class="mb-0">Kelola Jadwal Kuliah</h4>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="me-3"><?php echo date('d F Y'); ?></span>
+                            <div class="dropdown">
+                                <button class="btn btn-light dropdown-toggle" type="button" 
+                                        data-bs-toggle="dropdown">
+                                    <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="profile.php">
+                                        <i class="fas fa-user me-2"></i>Profile
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="logout.php">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+                
+                <!-- Page Header untuk Desktop -->
                 <div class="page-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -550,7 +1116,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     </div>
                 </div>
 
-                <!-- Filter Section -->
+                <!-- Filter Section untuk Desktop -->
                 <div class="filter-section">
                     <h6><i class="fas fa-filter me-2"></i>Filter Jadwal</h6>
                     <form method="GET" class="row g-3">
@@ -594,7 +1160,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     <?php endif; ?>
                 </div>
 
-                <!-- Statistics Cards -->
+                <!-- Statistics Cards untuk Desktop -->
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <div class="stat-card">
@@ -626,9 +1192,17 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     </div>
                 </div>
 
-                <?php echo displayMessage(); ?>
+                <?php 
+                // Tampilkan pesan flash untuk desktop
+                if(isset($_SESSION['message'])) {
+                    echo "<div class='alert alert-success'>{$_SESSION['message']}</div>";
+                }
+                if(isset($_SESSION['error'])) {
+                    echo "<div class='alert alert-danger'>{$_SESSION['error']}</div>";
+                }
+                ?>
 
-                <!-- Data Table -->
+                <!-- Data Table untuk Desktop -->
                 <div class="table-container">
                     <?php if(count($schedules) == 0): ?>
                         <div class="text-center py-5">
@@ -641,7 +1215,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                         </div>
                     <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-hover" id="scheduleTable">
+                        <table class="table table-hover" id="scheduleTableDesktop">
                             <thead>
                                 <tr>
                                     <th>No</th>
@@ -705,15 +1279,15 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
     </div>
 
     <!-- Modal Tambah -->
-    <div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form method="POST" id="addForm">
                     <div class="modal-header">
                         <h5 class="modal-title">Tambah Jadwal Baru</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -819,15 +1393,15 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
     </div>
 
     <!-- Modal Edit -->
-    <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form method="POST" id="editForm">
                     <div class="modal-header">
                         <h5 class="modal-title">Edit Jadwal</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
                         <input type="hidden" name="id" id="edit_id">
                         <div class="row">
                             <div class="col-md-6">
@@ -917,7 +1491,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
     </div>
 
     <!-- Modal Hapus Semua -->
-    <div class="modal fade" id="deleteAllModal" tabindex="-1">
+    <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form method="POST">
@@ -925,7 +1499,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                         <h5 class="modal-title">
                             <i class="fas fa-exclamation-triangle me-2"></i>Konfirmasi Hapus Semua Data
                         </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-danger">
@@ -971,8 +1545,9 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
     <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
     <script>
         $(document).ready(function() {
+            // Inisialisasi DataTables untuk desktop
             <?php if(count($schedules) > 0): ?>
-            $('#scheduleTable').DataTable({
+            $('#scheduleTableDesktop').DataTable({
                 "language": {
                     "url": "https://cdn.datatables.net/plug-ins/1.13.1/i18n/id.json"
                 },
@@ -983,7 +1558,26 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 ],
                 "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
                 "responsive": true,
-                "stateSave": true
+                "stateSave": true,
+                "scrollX": false
+            });
+            
+            // Inisialisasi DataTables untuk mobile
+            $('#scheduleTableMobile').DataTable({
+                "language": {
+                    "url": "https://cdn.datatables.net/plug-ins/1.13.1/i18n/id.json"
+                },
+                "pageLength": 10,
+                "order": [[0, 'asc']],
+                "columnDefs": [
+                    { "orderable": false, "targets": [7] }
+                ],
+                "responsive": true,
+                "scrollX": true,
+                "autoWidth": false,
+                "dom": '<"row"<"col-sm-12"f>>rt<"row"<"col-sm-12"ip>>',
+                "stateSave": true,
+                "pagingType": "simple_numbers"
             });
             <?php endif; ?>
             
@@ -1159,6 +1753,15 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     $('#edit_waktu_selesai').val(endTime);
                 }
             });
+            
+            // Perbaikan untuk mobile: tutup modal saat submit berhasil
+            $('form').on('submit', function() {
+                if ($(window).width() < 768) {
+                    setTimeout(function() {
+                        $('.modal').modal('hide');
+                    }, 100);
+                }
+            });
         });
         
         function editSchedule(schedule) {
@@ -1187,37 +1790,9 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             $('#editModal').modal('show');
         }
         
-        function toggleMobileSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-            
-            if (sidebar.classList.contains('mobile-show')) {
-                sidebar.classList.remove('mobile-show');
-                if (overlay) overlay.remove();
-            } else {
-                sidebar.classList.add('mobile-show');
-                // Tambah overlay
-                if (!overlay) {
-                    const overlayDiv = document.createElement('div');
-                    overlayDiv.className = 'mobile-overlay';
-                    overlayDiv.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.5);
-                        z-index: 999;
-                    `;
-                    overlayDiv.onclick = toggleMobileSidebar;
-                    document.body.appendChild(overlayDiv);
-                }
-            }
-        }
-        
         // Filter data table by badge click
         function filterTable(filterType, filterValue) {
-            const table = $('#scheduleTable').DataTable();
+            const table = $('#scheduleTableDesktop').DataTable();
             table.search('').columns().search('').draw();
             
             if (filterType === 'kelas') {
@@ -1231,7 +1806,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
         
         // Export to Excel (simple implementation)
         function exportToExcel() {
-            let table = document.getElementById("scheduleTable");
+            let table = document.getElementById("scheduleTableDesktop");
             let rows = table.querySelectorAll("tr");
             let csv = [];
             
@@ -1257,3 +1832,8 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
     </script>
 </body>
 </html>
+<?php
+// Reset session messages untuk menghindari duplikasi
+unset($_SESSION['message']);
+unset($_SESSION['error']);
+?>
