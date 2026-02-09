@@ -203,13 +203,27 @@ $database = new Database();
 $db = $database->getConnection();
 $lockout_settings = getLockoutSettings($db);
 
-// Cek gambar admin
-$admin_images = ['admin-avatar.jpg', 'admin-avatar.png', 'admin.jpg', 'admin.png'];
-$admin_image_path = '';
-foreach ($admin_images as $image) {
-    $path = '../../assets/images/' . $image;
+// Cek gambar logo kampus dan jurusan dari folder assets/images
+$assets_path = '../assets/images/';
+
+// Logo kampus - cek berbagai format
+$campus_logos = ['logo_kampus.png', 'logo_kampus.jpg', 'logo-kampus.png', 'logo-kampus.jpg', 'campus-logo.png', 'campus-logo.jpg', 'logo-universitas.png', 'logo-universitas.jpg'];
+$campus_logo_path = 'logo_kampus.png';
+foreach ($campus_logos as $image) {
+    $path = $assets_path . $image;
     if (file_exists($path)) {
-        $admin_image_path = $path;
+        $campus_logo_path = $path;
+        break;
+    }
+}
+
+// Logo jurusan - cek berbagai format
+$department_logos = ['logo_jurusan.png', 'logo_jurusan.jpg', 'logo-jurusan.png', 'logo-jurusan.jpg', 'department-logo.png', 'department-logo.jpg', 'jurusan-logo.png', 'jurusan-logo.jpg'];
+$department_logo_path = 'logo_jurusan.';
+foreach ($department_logos as $image) {
+    $path = $assets_path . $image;
+    if (file_exists($path)) {
+        $department_logo_path = $path;
         break;
     }
 }
@@ -285,36 +299,68 @@ foreach ($admin_images as $image) {
         }
         
         .login-header {
-            padding: 30px 30px 20px;
+            padding: 20px 30px 15px;
             text-align: center;
             position: relative;
             background: linear-gradient(135deg, rgba(44, 62, 80, 0.9), rgba(74, 100, 145, 0.9));
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        .admin-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            margin: 15px auto;
-            display: block;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            padding: 3px;
+        .logo-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
         }
         
-        .login-header h2 {
+        .campus-logo, .department-logo {
+            height: 50px;
+            max-width: 120px;
+            object-fit: contain;
+            flex-shrink: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 5px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .header-title {
+            flex-grow: 1;
+            padding: 0 10px;
+            min-width: 0;
+        }
+        
+        .header-title h2 {
             color: white;
             font-weight: 700;
             margin-bottom: 5px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-size: 1.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
-        .login-header p {
+        .header-title p {
             color: rgba(255, 255, 255, 0.9);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             margin-bottom: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .admin-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            margin: 10px auto;
+            display: block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 3px;
         }
         
         .login-body {
@@ -583,6 +629,75 @@ foreach ($admin_images as $image) {
             color: #6c757d !important;
         }
         
+        /* Popup styles for inactive account */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .popup-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .popup-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .popup-icon {
+            font-size: 50px;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        
+        .popup-title {
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .popup-message {
+            color: #666;
+            margin-bottom: 25px;
+        }
+        
+        .popup-timer {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .logo-placeholder {
+            width: 120px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
         /* Responsive adjustments */
         @media (max-width: 576px) {
             .login-card {
@@ -590,11 +705,61 @@ foreach ($admin_images as $image) {
             }
             
             .login-header {
-                padding: 25px 20px 15px;
+                padding: 15px 20px 10px;
+            }
+            
+            .logo-container {
+                gap: 10px;
+            }
+            
+            .campus-logo, .department-logo {
+                height: 40px;
+                max-width: 80px;
+                padding: 4px;
+            }
+            
+            .header-title h2 {
+                font-size: 1.1rem;
+            }
+            
+            .header-title p {
+                font-size: 0.75rem;
+            }
+            
+            .admin-avatar {
+                width: 60px;
+                height: 60px;
             }
             
             .login-body {
                 padding: 25px;
+            }
+            
+            .logo-placeholder {
+                width: 80px;
+                height: 40px;
+            }
+            
+            .logo-placeholder i {
+                font-size: 1.5rem;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .logo-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .campus-logo, .department-logo, .logo-placeholder {
+                max-width: 100px;
+                height: 40px;
+            }
+            
+            .header-title {
+                order: 3;
+                width: 100%;
+                margin-top: 10px;
             }
         }
     </style>
@@ -628,16 +793,32 @@ foreach ($admin_images as $image) {
 
     <div class="login-card">
         <div class="login-header">
-            <h2><i class="fas fa-calendar-alt me-2"></i> Admin Panel</h2>
-            <p class="mb-3">Sistem Jadwal Kuliah</p>
-            
-            <?php if($admin_image_path): ?>
-                <img src="<?php echo $admin_image_path; ?>" alt="Admin" class="admin-avatar">
-            <?php else: ?>
-                <div class="admin-avatar d-flex align-items-center justify-content-center">
-                    <i class="fas fa-user-cog text-white" style="font-size: 2rem;"></i>
+            <div class="logo-container">
+                <?php if($campus_logo_path): ?>
+                    <img src="<?php echo $campus_logo_path; ?>" alt="Logo Kampus" class="campus-logo">
+                <?php else: ?>
+                    <div class="logo-placeholder">
+                        <i class="fas fa-university text-white" style="font-size: 2rem;"></i>
+                    </div>
+                <?php endif; ?>
+                
+                <div class="header-title">
+                    <h2><i class="fas fa-calendar-alt me-2"></i> Admin Panel</h2>
+                    <p>Sistem Jadwal Kuliah</p>
                 </div>
-            <?php endif; ?>
+                
+                <?php if($department_logo_path): ?>
+                    <img src="<?php echo $department_logo_path; ?>" alt="Logo Jurusan" class="department-logo">
+                <?php else: ?>
+                    <div class="logo-placeholder">
+                        <i class="fas fa-graduation-cap text-white" style="font-size: 2rem;"></i>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <div class="admin-avatar d-flex align-items-center justify-content-center">
+                <i class="fas fa-user-cog text-white" style="font-size: 2rem;"></i>
+            </div>
             
             <p class="mt-2 mb-0"><small>Login untuk mengakses dashboard admin</small></p>
         </div>
@@ -776,11 +957,6 @@ foreach ($admin_images as $image) {
                     <p class="text-muted small mb-0">
                         <i class="fas fa-shield-alt me-1"></i> 
                         Link pendaftaran hanya bisa diakses sekali
-                    </p>
-                    <?php else: ?>
-                    <p class="text-muted small mb-0">
-                        <i class="fas fa-shield-alt me-1"></i> 
-                        Sistem sudah memiliki superadmin
                     </p>
                     <?php endif; ?>
                 </div>
