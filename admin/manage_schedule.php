@@ -305,7 +305,6 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <!-- Viewport untuk mobile yang lebih ketat -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>Kelola Jadwal - Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -547,6 +546,16 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 overflow-x: hidden;
                 position: relative;
             }
+            
+            /* Perbaikan time-row di mobile */
+            .time-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .time-row > div {
+                width: 100%;
+            }
         }
         
         /* Untuk layar sangat kecil (di bawah 576px) */
@@ -587,16 +596,6 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             .btn-group-mobile .btn {
                 padding: 3px 6px;
                 min-width: 32px;
-            }
-            
-            /* Waktu di form */
-            .time-row {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .time-row > div {
-                width: 100%;
             }
             
             /* Modal untuk mobile kecil */
@@ -754,6 +753,19 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
         .gap-1 { gap: 0.25rem; }
         .gap-2 { gap: 0.5rem; }
         .gap-3 { gap: 1rem; }
+        
+        /* Style untuk input time */
+        input[type="time"] {
+            min-height: 38px;
+            padding: 0.375rem 0.75rem;
+        }
+        
+        @media (max-width: 768px) {
+            input[type="time"] {
+                font-size: 16px; /* Mencegah zoom otomatis di iOS */
+                padding: 0.5rem 0.75rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -811,7 +823,6 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             <!-- NAVBAR MOBILE -->
             <nav class="navbar navbar-expand-lg navbar-custom d-md-none mb-4">
                 <div class="container-fluid">
-                    <!-- Tombol hamburger untuk toggle sidebar mobile - SAMA SEPERTI DASHBOARD -->
                     <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" 
                             data-bs-target="#mobileSidebar">
                         <i class="fas fa-bars"></i>
@@ -841,7 +852,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 </div>
             </nav>
 
-            <!-- Mobile Sidebar Collapse - SAMA SEPERTI DASHBOARD -->
+            <!-- Mobile Sidebar Collapse -->
             <div class="collapse d-md-none mb-4" id="mobileSidebar">
                 <div class="card">
                     <div class="card-body">
@@ -1278,7 +1289,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
         </div>
     </div>
 
-    <!-- Modal Tambah -->
+    <!-- Modal Tambah (dengan input waktu format 24 jam) -->
     <div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -1309,14 +1320,15 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                                     <div class="row time-row">
                                         <div class="col-md-6">
                                             <label>Waktu Mulai <span class="text-danger">*</span></label>
-                                            <input type="time" name="waktu_mulai" id="add_waktu_mulai" class="form-control" required value="07:30">
+                                            <input type="time" name="waktu_mulai" id="add_waktu_mulai" class="form-control" required value="07:30" step="60">
+                                            <small class="text-muted">Format 24 jam (HH:MM)</small>
                                         </div>
                                         <div class="col-md-6">
                                             <label>Waktu Selesai <span class="text-danger">*</span></label>
-                                            <input type="time" name="waktu_selesai" id="add_waktu_selesai" class="form-control" required value="09:00">
+                                            <input type="time" name="waktu_selesai" id="add_waktu_selesai" class="form-control" required value="09:00" step="60">
+                                            <small class="text-muted">Format 24 jam (HH:MM)</small>
                                         </div>
                                     </div>
-                                    <small class="form-text text-muted">Format: HH:MM (24 jam)</small>
                                 </div>
                                 <div class="mb-3">
                                     <label>Jam Ke <span class="text-danger">*</span></label>
@@ -1392,7 +1404,7 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
         </div>
     </div>
 
-    <!-- Modal Edit -->
+    <!-- Modal Edit (dengan input waktu format 24 jam) -->
     <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -1423,14 +1435,15 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                                     <div class="row time-row">
                                         <div class="col-md-6">
                                             <label>Waktu Mulai <span class="text-danger">*</span></label>
-                                            <input type="time" name="waktu_mulai" id="edit_waktu_mulai" class="form-control" required>
+                                            <input type="time" name="waktu_mulai" id="edit_waktu_mulai" class="form-control" required step="60">
+                                            <small class="text-muted">Format 24 jam (HH:MM)</small>
                                         </div>
                                         <div class="col-md-6">
                                             <label>Waktu Selesai <span class="text-danger">*</span></label>
-                                            <input type="time" name="waktu_selesai" id="edit_waktu_selesai" class="form-control" required>
+                                            <input type="time" name="waktu_selesai" id="edit_waktu_selesai" class="form-control" required step="60">
+                                            <small class="text-muted">Format 24 jam (HH:MM)</small>
                                         </div>
                                     </div>
-                                    <small class="form-text text-muted">Format: HH:MM (24 jam)</small>
                                 </div>
                                 <div class="mb-3">
                                     <label>Jam Ke <span class="text-danger">*</span></label>
@@ -1623,6 +1636,55 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                 return true;
             });
             
+            // Auto adjust end time based on start time
+            $('#add_waktu_mulai').on('change', function() {
+                const startTime = $(this).val();
+                if (startTime) {
+                    const [hours, minutes] = startTime.split(':').map(Number);
+                    // Tambah 90 menit (1.5 jam)
+                    let totalMinutes = hours * 60 + minutes + 90;
+                    
+                    // Handle jika melewati tengah malam
+                    if (totalMinutes >= 24 * 60) {
+                        totalMinutes = totalMinutes - (24 * 60);
+                    }
+                    
+                    const endHours = Math.floor(totalMinutes / 60);
+                    const endMinutes = totalMinutes % 60;
+                    const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+                    $('#add_waktu_selesai').val(endTime);
+                    
+                    // Tampilkan notifikasi jika melewati tengah malam
+                    if (totalMinutes >= 24 * 60) {
+                        alert('Perhatian: Waktu selesai melewati tengah malam!');
+                    }
+                }
+            });
+            
+            $('#edit_waktu_mulai').on('change', function() {
+                const startTime = $(this).val();
+                if (startTime) {
+                    const [hours, minutes] = startTime.split(':').map(Number);
+                    // Tambah 90 menit (1.5 jam)
+                    let totalMinutes = hours * 60 + minutes + 90;
+                    
+                    // Handle jika melewati tengah malam
+                    if (totalMinutes >= 24 * 60) {
+                        totalMinutes = totalMinutes - (24 * 60);
+                    }
+                    
+                    const endHours = Math.floor(totalMinutes / 60);
+                    const endMinutes = totalMinutes % 60;
+                    const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+                    $('#edit_waktu_selesai').val(endTime);
+                    
+                    // Tampilkan notifikasi jika melewati tengah malam
+                    if (totalMinutes >= 24 * 60) {
+                        alert('Perhatian: Waktu selesai melewati tengah malam!');
+                    }
+                }
+            });
+            
             // Validasi form tambah
             $('#addForm').on('submit', function(e) {
                 const waktu_mulai = $('#add_waktu_mulai').val();
@@ -1675,11 +1737,48 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     return false;
                 }
                 
-                if(waktu_selesai <= waktu_mulai) {
+                // Validasi format waktu (HH:MM)
+                const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                if (!timeRegex.test(waktu_mulai) || !timeRegex.test(waktu_selesai)) {
                     e.preventDefault();
-                    alert('Waktu selesai harus setelah waktu mulai');
-                    $('#add_waktu_selesai').focus();
+                    alert('Format waktu tidak valid! Gunakan format 24 jam HH:MM (contoh: 07:30)');
                     return false;
+                }
+                
+                // Konversi ke menit untuk perbandingan
+                const [startHour, startMinute] = waktu_mulai.split(':').map(Number);
+                const [endHour, endMinute] = waktu_selesai.split(':').map(Number);
+                
+                const startTotalMinutes = startHour * 60 + startMinute;
+                const endTotalMinutes = endHour * 60 + endMinute;
+                
+                // Hitung selisih waktu (handle jika melewati tengah malam)
+                let diffMinutes;
+                if (endTotalMinutes >= startTotalMinutes) {
+                    diffMinutes = endTotalMinutes - startTotalMinutes;
+                } else {
+                    // Melewati tengah malam
+                    diffMinutes = (24 * 60 - startTotalMinutes) + endTotalMinutes;
+                }
+                
+                if (diffMinutes <= 0) {
+                    e.preventDefault();
+                    alert('Waktu selesai harus setelah waktu mulai!');
+                    return false;
+                }
+                
+                if (diffMinutes < 30) {
+                    if(!confirm('Durasi waktu kurang dari 30 menit. Apakah Anda yakin?')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+                
+                if (diffMinutes > 240) { // 4 jam
+                    if(!confirm('Durasi waktu lebih dari 4 jam. Apakah Anda yakin?')) {
+                        e.preventDefault();
+                        return false;
+                    }
                 }
                 
                 if(!jam_ke || jam_ke < 1 || jam_ke > 10) {
@@ -1716,9 +1815,33 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     return false;
                 }
                 
-                if(waktu_selesai <= waktu_mulai) {
+                // Validasi format waktu (HH:MM)
+                const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                if (!timeRegex.test(waktu_mulai) || !timeRegex.test(waktu_selesai)) {
                     e.preventDefault();
-                    alert('Waktu selesai harus setelah waktu mulai');
+                    alert('Format waktu tidak valid! Gunakan format 24 jam HH:MM (contoh: 07:30)');
+                    return false;
+                }
+                
+                // Konversi ke menit untuk perbandingan
+                const [startHour, startMinute] = waktu_mulai.split(':').map(Number);
+                const [endHour, endMinute] = waktu_selesai.split(':').map(Number);
+                
+                const startTotalMinutes = startHour * 60 + startMinute;
+                const endTotalMinutes = endHour * 60 + endMinute;
+                
+                // Hitung selisih waktu (handle jika melewati tengah malam)
+                let diffMinutes;
+                if (endTotalMinutes >= startTotalMinutes) {
+                    diffMinutes = endTotalMinutes - startTotalMinutes;
+                } else {
+                    // Melewati tengah malam
+                    diffMinutes = (24 * 60 - startTotalMinutes) + endTotalMinutes;
+                }
+                
+                if (diffMinutes <= 0) {
+                    e.preventDefault();
+                    alert('Waktu selesai harus setelah waktu mulai!');
                     return false;
                 }
                 
@@ -1727,31 +1850,6 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
                     return false;
                 }
                 return true;
-            });
-            
-            // Auto adjust end time based on start time
-            $('#add_waktu_mulai').on('change', function() {
-                const startTime = $(this).val();
-                if (startTime) {
-                    const [hours, minutes] = startTime.split(':').map(Number);
-                    const totalMinutes = hours * 60 + minutes + 90; // Add 90 minutes
-                    const endHours = Math.floor(totalMinutes / 60);
-                    const endMinutes = totalMinutes % 60;
-                    const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-                    $('#add_waktu_selesai').val(endTime);
-                }
-            });
-            
-            $('#edit_waktu_mulai').on('change', function() {
-                const startTime = $(this).val();
-                if (startTime) {
-                    const [hours, minutes] = startTime.split(':').map(Number);
-                    const totalMinutes = hours * 60 + minutes + 90; // Add 90 minutes
-                    const endHours = Math.floor(totalMinutes / 60);
-                    const endMinutes = totalMinutes % 60;
-                    const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-                    $('#edit_waktu_selesai').val(endTime);
-                }
             });
             
             // Perbaikan untuk mobile: tutup modal saat submit berhasil
@@ -1773,8 +1871,19 @@ $kelas_list_all = $stmt_kelas_all->fetchAll(PDO::FETCH_COLUMN);
             // Pisahkan waktu menjadi waktu_mulai dan waktu_selesai
             var waktuParts = schedule.waktu.split(' - ');
             if (waktuParts.length === 2) {
-                $('#edit_waktu_mulai').val(waktuParts[0]);
-                $('#edit_waktu_selesai').val(waktuParts[1]);
+                var waktuMulai = waktuParts[0].trim();
+                var waktuSelesai = waktuParts[1].trim();
+                
+                // Validasi format
+                var timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                if (timeRegex.test(waktuMulai) && timeRegex.test(waktuSelesai)) {
+                    $('#edit_waktu_mulai').val(waktuMulai);
+                    $('#edit_waktu_selesai').val(waktuSelesai);
+                } else {
+                    // Default jika format tidak sesuai
+                    $('#edit_waktu_mulai').val('07:30');
+                    $('#edit_waktu_selesai').val('09:00');
+                }
             } else {
                 // Default jika format tidak sesuai
                 $('#edit_waktu_mulai').val('07:30');
